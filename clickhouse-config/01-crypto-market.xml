@@ -1,0 +1,79 @@
+<?xml version="1.0"?>
+<clickhouse>
+    <!-- 创建 crypto_market 数据库 -->
+    <database>
+        <crypto_market>
+            <comment>加密货币行情数据数据库</comment>
+        </crypto_market>
+    </database>
+
+    <!-- 用户配置 -->
+    <users>
+        <default>
+            <password></password>
+            <networks>
+                <ip>::/0</ip>
+            </networks>
+            <profile>default</profile>
+            <quota>default</quota>
+            <access_management>1</access_management>
+            <!-- 添加必要的权限 -->
+            <grants>
+                <query>GRANT ALL ON crypto_market.* TO default</query>
+                <query>GRANT CREATE TABLE ON crypto_market.* TO default</query>
+                <query>GRANT INSERT ON crypto_market.* TO default</query>
+                <query>GRANT SELECT ON crypto_market.* TO default</query>
+            </grants>
+        </default>
+    </users>
+
+    <!-- 配置文件 -->
+    <profiles>
+        <default>
+            <max_memory_usage>10000000000</max_memory_usage>
+            <use_uncompressed_cache>0</use_uncompressed_cache>
+            <max_bytes_before_external_group_by>20000000000</max_bytes_before_external_group_by>
+            <max_bytes_before_external_sort>20000000000</max_bytes_before_external_sort>
+            <!-- 添加网络设置 -->
+            <listen_host>0.0.0.0</listen_host>
+            <tcp_port>9000</tcp_port>
+            <http_port>8123</http_port>
+            <!-- 超时设置 -->
+            <receive_timeout>60</receive_timeout>
+            <send_timeout>60</send_timeout>
+            <connect_timeout>10</connect_timeout>
+            <!-- 插入优化 -->
+            <async_insert>1</async_insert>
+            <wait_for_async_insert_timeout>30</wait_for_async_insert_timeout>
+            <async_insert_busy_timeout_ms>1000</async_insert_busy_timeout_ms>
+        </default>
+    </profiles>
+
+    <!-- 配额配置 -->
+    <quotas>
+        <default>
+            <interval>
+                <duration>3600</duration>
+                <queries>0</queries>
+                <errors>0</errors>
+                <result_rows>0</result_rows>
+                <read_rows>0</read_rows>
+                <execution_time>0</execution_time>
+            </interval>
+        </default>
+    </quotas>
+
+    <!-- 网络配置 -->
+    <listen_host>0.0.0.0</listen_host>
+    <tcp_port>9000</tcp_port>
+    <http_port>8123</http_port>
+    
+    <!-- 日志配置 -->
+    <logger>
+        <level>warning</level>
+        <log>/var/log/clickhouse-server/clickhouse-server.log</log>
+        <errorlog>/var/log/clickhouse-server/clickhouse-server.err.log</errorlog>
+        <size>1000M</size>
+        <count>10</count>
+    </logger>
+</clickhouse> 

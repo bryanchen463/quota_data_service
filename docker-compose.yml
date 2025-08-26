@@ -1,0 +1,133 @@
+# version: '3.8'
+
+services:
+  # 行情数据服务
+  quota-data-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: quota-data-service
+    ports:
+      - "8080:8080"  # HTTP API
+      - "9090:9090"  # gRPC API
+    environment:
+      # 服务配置
+      - INGEST_ADDR=:8080
+      - GRPC_ADDR=:9090
+      
+      # ClickHouse 配置
+      - CH_ADDR=clickhouse:9000
+      - CH_USER=default
+      - CH_PASSWORD=
+      - CH_DATABASE=crypto_market
+      - CH_TABLE=raw_ticks
+      
+      # 批处理配置
+      - FLUSH_MS=10
+      - MAX_BATCH=800
+      - MAX_QUEUE=20000
+      - INSERT_TIMEOUT_MS=1500
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    networks:
+      - quota-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    volumes:
+      - ./logs:/app/logs
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+
+  # ClickHouse 数据库
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: clickhouse
+    ports:
+      - "9000:9000"   # Native TCP
+      - "8123:8123"   # HTTP
+      - "9009:9009"   # Interserver
+    environment:
+      - CLICKHOUSE_DB=crypto_market
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=
+      - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+      - CLICKHOUSE_ACCESS_MANAGEMENT=1
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - clickhouse-logs:/var/log/clickhouse-server
+      - ./clickhouse-config:/etc/clickhouse-server/config.d
+      - ./clickhouse-init:/docker-entrypoint-initdb.d
+    networks:
+      - quota-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--host", "localhost", "--port", "9000", "--query", "SELECT 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2.0'
+        reservations:
+          memory: 1G
+          cpus: '1.0'
+
+  # ClickHouse 客户端（可选，用于调试）
+  clickhouse-client:
+    image: clickhouse/clickhouse-client:latest
+    container_name: clickhouse-client
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    networks:
+      - quota-network
+    profiles:
+      - debug
+    stdin_open: true
+    tty: true
+    command: ["clickhouse-client", "--host", "clickhouse", "--port", "9000"]
+
+  # gRPC 测试客户端（可选，用于测试）
+  grpc-test-client:
+    build:
+      context: ./examples
+      dockerfile: Dockerfile.client
+    container_name: grpc-test-client
+    depends_on:
+      quota-data-service:
+        condition: service_healthy
+    networks:
+      - quota-network
+    profiles:
+      - test
+    environment:
+      - GRPC_SERVER=quota-data-service:9090
+    restart: "no"
+
+networks:
+  quota-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  clickhouse-data:
+    driver: local
+  clickhouse-logs:
+    driver: local 

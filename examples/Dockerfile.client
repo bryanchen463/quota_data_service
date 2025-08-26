@@ -1,0 +1,43 @@
+# 使用 Go 官方镜像作为构建阶段
+FROM golang:1.23 AS builder
+
+WORKDIR /app
+
+# 复制 go.mod 和 go.sum 文件
+COPY go.mod go.sum ./
+
+# 下载依赖
+RUN go mod download
+
+# 安装 protobuf Go 插件
+RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
+# 复制源代码
+COPY . .
+
+# 生成 protobuf 代码
+RUN protoc --go_out=. --go_opt=paths=source_relative \
+    --go-grpc_out=. --go-grpc_opt=paths=source_relative \
+    ../proto/quota_service.proto
+
+# 编译测试客户端
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o grpc_client grpc_client.go
+
+# 运行阶段
+FROM debian:bullseye-slim
+
+# 安装运行时依赖
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# 复制编译好的客户端
+COPY --from=builder /app/grpc_client .
+
+# 设置环境变量
+ENV GRPC_SERVER=localhost:9090
+
+# 启动命令
+CMD ["./grpc_client"] 

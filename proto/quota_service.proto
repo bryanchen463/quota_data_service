@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package quota_service;
+
+option go_package = "github.com/bryanchen463/quota_data_service/proto";
+
+import "google/protobuf/timestamp.proto";
+
+// 行情数据服务
+service QuotaService {
+  // 推送行情数据
+  rpc IngestTick(IngestTickRequest) returns (IngestTickResponse);
+  
+  // 批量推送行情数据
+  rpc IngestTicks(IngestTicksRequest) returns (IngestTicksResponse);
+  
+  // 健康检查
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+// 单个行情数据
+message Tick {
+  // 接收时间（Unix时间戳，秒）
+  double receive_time = 1;
+  
+  // 交易对符号
+  string symbol = 2;
+  
+  // 交易所
+  string exchange = 3;
+  
+  // 市场类型：spot|futures
+  string market_type = 4;
+  
+  // 最佳买价
+  double best_bid_px = 5;
+  
+  // 最佳买量
+  double best_bid_sz = 6;
+  
+  // 最佳卖价
+  double best_ask_px = 7;
+  
+  // 最佳卖量
+  double best_ask_sz = 8;
+  
+  // 买单价格数组
+  repeated double bids_px = 9;
+  
+  // 买单数量数组
+  repeated double bids_sz = 10;
+  
+  // 卖单价格数组
+  repeated double asks_px = 11;
+  
+  // 卖单数量数组
+  repeated double asks_sz = 12;
+}
+
+// 推送单个行情请求
+message IngestTickRequest {
+  Tick tick = 1;
+}
+
+// 推送单个行情响应
+message IngestTickResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// 批量推送行情请求
+message IngestTicksRequest {
+  repeated Tick ticks = 1;
+}
+
+// 批量推送行情响应
+message IngestTicksResponse {
+  bool success = 1;
+  string message = 2;
+  int32 processed_count = 3;
+}
+
+// 健康检查请求
+message HealthCheckRequest {}
+
+// 健康检查响应
+message HealthCheckResponse {
+  bool healthy = 1;
+  string message = 2;
+  int64 timestamp = 3;
+} 

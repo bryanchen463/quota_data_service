@@ -1,0 +1,60 @@
+# Git 相关
+.git
+.gitignore
+
+# 文档
+README*.md
+*.md
+docs/
+
+# 测试文件
+*_test.go
+test/
+tests/
+
+# 构建产物
+bin/
+dist/
+build/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# 日志文件
+*.log
+logs/
+
+# 临时文件
+tmp/
+temp/
+*.tmp
+
+# IDE 配置
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS 生成的文件
+.DS_Store
+Thumbs.db
+
+# Docker 相关
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# 示例和客户端
+examples/
+client/
+
+# 配置文件
+clickhouse-config/
+config/
+
+# 其他
+.env
+.env.local
+*.env 
