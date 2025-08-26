@@ -352,9 +352,9 @@ docker logs -f quota-data-service
 
 ## 🤝 联系方式
 
-- 项目维护者：[Your Name]
-- 邮箱：[your.email@example.com]
-- 项目地址：[GitHub Repository URL]
+- 项目维护者：[bryan chen]
+- 邮箱：[strawhack@gmail.com]
+- 项目地址：[https://github.com/bryanchen463/quota_data_service]
 
 ## 🙏 致谢
 
