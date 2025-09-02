@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	pb "github.com/bryanchen463/quota_data_service/proto"
@@ -14,12 +16,14 @@ import (
 type QuotaServiceServer struct {
 	pb.UnimplementedQuotaServiceServer
 	input chan<- Tick
+	pool  *CHPool
 }
 
 // NewQuotaServiceServer 创建新的gRPC服务实例
-func NewQuotaServiceServer(input chan<- Tick) *QuotaServiceServer {
+func NewQuotaServiceServer(input chan<- Tick, pool *CHPool) *QuotaServiceServer {
 	return &QuotaServiceServer{
 		input: input,
+		pool:  pool,
 	}
 }
 
@@ -77,6 +81,7 @@ func (s *QuotaServiceServer) IngestTicks(ctx context.Context, req *pb.IngestTick
 	}
 
 	processedCount := 0
+batchLoop:
 	for _, pbTick := range req.Ticks {
 		if pbTick == nil {
 			continue
@@ -111,7 +116,7 @@ func (s *QuotaServiceServer) IngestTicks(ctx context.Context, req *pb.IngestTick
 		default:
 			// 队列已满，跳过剩余数据
 			log.Printf("queue is full, dropping remaining ticks in batch")
-			break
+			break batchLoop
 		}
 	}
 
@@ -164,4 +169,139 @@ func (s *QuotaServiceServer) validateTick(tick *Tick) error {
 	}
 
 	return nil
+}
+
+func (s *QuotaServiceServer) GetTicks(ctx context.Context, req *pb.GetTicksRequest) (*pb.GetTicksResponse, error) {
+	// 构建查询条件
+	whereConditions := []string{}
+	args := []interface{}{}
+
+	if req.Symbol != "" {
+		if strings.Contains(req.Symbol, "*") {
+			// 支持通配符查询
+			pattern := strings.ReplaceAll(req.Symbol, "*", "%")
+			whereConditions = append(whereConditions, "symbol LIKE ?")
+			args = append(args, pattern)
+		} else {
+			whereConditions = append(whereConditions, "symbol = ?")
+			args = append(args, req.Symbol)
+		}
+	}
+
+	if req.Exchange != "" {
+		whereConditions = append(whereConditions, "exchange = ?")
+		args = append(args, req.Exchange)
+	}
+
+	if req.MarketType != "" {
+		whereConditions = append(whereConditions, "market_type = ?")
+		args = append(args, req.MarketType)
+	}
+
+	if req.StartTime > 0 {
+		whereConditions = append(whereConditions, "receive_time >= ?")
+		args = append(args, time.Unix(req.StartTime, 0))
+	}
+
+	if req.EndTime > 0 {
+		whereConditions = append(whereConditions, "receive_time <= ?")
+		args = append(args, time.Unix(req.EndTime, 0))
+	}
+
+	// 设置默认限制
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 100
+	}
+	if limit > 1000 {
+		limit = 1000
+	}
+
+	offset := req.Offset
+	if offset < 0 {
+		offset = 0
+	}
+
+	ticks, err := getTickers(whereConditions, args, int(limit), int(offset), s.pool, ctx)
+	if err != nil {
+		return &pb.GetTicksResponse{
+			Success: false,
+			Message: fmt.Sprintf("get ticks failed: %v", err),
+		}, err
+	}
+	var pbTicks []*pb.Tick
+	for _, tick := range ticks {
+		pbTicks = append(pbTicks, convertTick(&tick, tick.ReceiveTime))
+	}
+
+	return &pb.GetTicksResponse{
+		Success:    true,
+		Message:    "query completed successfully",
+		Ticks:      pbTicks,
+		TotalCount: int32(len(ticks)),
+	}, nil
+}
+
+func (s *QuotaServiceServer) GetLatestTick(ctx context.Context, req *pb.GetLatestTickRequest) (*pb.GetLatestTickResponse, error) {
+	// 验证必填参数
+	if req.Symbol == "" {
+		return nil, status.Error(codes.InvalidArgument, "symbol is required")
+	}
+
+	// 构建查询条件
+	whereConditions := []string{"symbol = ?"}
+	args := []interface{}{req.Symbol}
+
+	if req.Exchange != "" {
+		whereConditions = append(whereConditions, "exchange = ?")
+		args = append(args, req.Exchange)
+	}
+
+	if req.MarketType != "" {
+		whereConditions = append(whereConditions, "market_type = ?")
+		args = append(args, req.MarketType)
+	}
+
+	t, receiveTime, bidsPx, bidsSz, asksPx, asksSz, err := getTick(whereConditions, s.pool, nil, args, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if err != nil {
+		return &pb.GetLatestTickResponse{
+			Success: false,
+			Message: fmt.Sprintf("get tick failed: %v", err),
+		}, err
+	}
+	tick := convertTick(&t, float64(receiveTime.Unix())+float64(receiveTime.Nanosecond())/1e9)
+
+	// 转换时间戳
+	tick.ReceiveTime = float64(receiveTime.Unix()) + float64(receiveTime.Nanosecond())/1e9
+	tick.BidsPx = bidsPx
+	tick.BidsSz = bidsSz
+	tick.AsksPx = asksPx
+	tick.AsksSz = asksSz
+
+	return &pb.GetLatestTickResponse{
+		Success: true,
+		Message: "latest tick retrieved successfully",
+		Tick:    tick,
+	}, nil
+}
+
+func convertTick(tick *Tick, receiveTime float64) *pb.Tick {
+	return &pb.Tick{
+		Symbol:      tick.Symbol,
+		Exchange:    tick.Exchange,
+		MarketType:  tick.MarketType,
+		BestBidPx:   tick.BestBidPx,
+		BestBidSz:   tick.BestBidSz,
+		BestAskPx:   tick.BestAskPx,
+		BestAskSz:   tick.BestAskSz,
+		BidsPx:      tick.BidsPx,
+		BidsSz:      tick.BidsSz,
+		AsksPx:      tick.AsksPx,
+		AsksSz:      tick.AsksSz,
+		ReceiveTime: receiveTime,
+	}
 }

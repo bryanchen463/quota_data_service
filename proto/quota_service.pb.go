@@ -469,6 +469,300 @@ func (x *HealthCheckResponse) GetTimestamp() int64 {
 	return 0
 }
 
+// 获取行情数据请求
+type GetTicksRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// 交易对符号（可选，支持通配符）
+	Symbol string `protobuf:"bytes,1,opt,name=symbol,proto3" json:"symbol,omitempty"`
+	// 交易所（可选）
+	Exchange string `protobuf:"bytes,2,opt,name=exchange,proto3" json:"exchange,omitempty"`
+	// 市场类型（可选）：spot|futures
+	MarketType string `protobuf:"bytes,3,opt,name=market_type,json=marketType,proto3" json:"market_type,omitempty"`
+	// 开始时间（Unix时间戳，秒）
+	StartTime int64 `protobuf:"varint,4,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	// 结束时间（Unix时间戳，秒）
+	EndTime int64 `protobuf:"varint,5,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
+	// 限制返回数量（默认100，最大1000）
+	Limit int32 `protobuf:"varint,6,opt,name=limit,proto3" json:"limit,omitempty"`
+	// 偏移量（用于分页）
+	Offset        int32 `protobuf:"varint,7,opt,name=offset,proto3" json:"offset,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTicksRequest) Reset() {
+	*x = GetTicksRequest{}
+	mi := &file_proto_quota_service_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTicksRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTicksRequest) ProtoMessage() {}
+
+func (x *GetTicksRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_quota_service_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTicksRequest.ProtoReflect.Descriptor instead.
+func (*GetTicksRequest) Descriptor() ([]byte, []int) {
+	return file_proto_quota_service_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GetTicksRequest) GetSymbol() string {
+	if x != nil {
+		return x.Symbol
+	}
+	return ""
+}
+
+func (x *GetTicksRequest) GetExchange() string {
+	if x != nil {
+		return x.Exchange
+	}
+	return ""
+}
+
+func (x *GetTicksRequest) GetMarketType() string {
+	if x != nil {
+		return x.MarketType
+	}
+	return ""
+}
+
+func (x *GetTicksRequest) GetStartTime() int64 {
+	if x != nil {
+		return x.StartTime
+	}
+	return 0
+}
+
+func (x *GetTicksRequest) GetEndTime() int64 {
+	if x != nil {
+		return x.EndTime
+	}
+	return 0
+}
+
+func (x *GetTicksRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *GetTicksRequest) GetOffset() int32 {
+	if x != nil {
+		return x.Offset
+	}
+	return 0
+}
+
+// 获取行情数据响应
+type GetTicksResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	Ticks         []*Tick                `protobuf:"bytes,3,rep,name=ticks,proto3" json:"ticks,omitempty"`
+	TotalCount    int32                  `protobuf:"varint,4,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTicksResponse) Reset() {
+	*x = GetTicksResponse{}
+	mi := &file_proto_quota_service_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTicksResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTicksResponse) ProtoMessage() {}
+
+func (x *GetTicksResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_quota_service_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTicksResponse.ProtoReflect.Descriptor instead.
+func (*GetTicksResponse) Descriptor() ([]byte, []int) {
+	return file_proto_quota_service_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *GetTicksResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *GetTicksResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *GetTicksResponse) GetTicks() []*Tick {
+	if x != nil {
+		return x.Ticks
+	}
+	return nil
+}
+
+func (x *GetTicksResponse) GetTotalCount() int32 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
+}
+
+// 获取最新行情请求
+type GetLatestTickRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// 交易对符号（必填）
+	Symbol string `protobuf:"bytes,1,opt,name=symbol,proto3" json:"symbol,omitempty"`
+	// 交易所（可选）
+	Exchange string `protobuf:"bytes,2,opt,name=exchange,proto3" json:"exchange,omitempty"`
+	// 市场类型（可选）：spot|futures
+	MarketType    string `protobuf:"bytes,3,opt,name=market_type,json=marketType,proto3" json:"market_type,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetLatestTickRequest) Reset() {
+	*x = GetLatestTickRequest{}
+	mi := &file_proto_quota_service_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetLatestTickRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetLatestTickRequest) ProtoMessage() {}
+
+func (x *GetLatestTickRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_quota_service_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetLatestTickRequest.ProtoReflect.Descriptor instead.
+func (*GetLatestTickRequest) Descriptor() ([]byte, []int) {
+	return file_proto_quota_service_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *GetLatestTickRequest) GetSymbol() string {
+	if x != nil {
+		return x.Symbol
+	}
+	return ""
+}
+
+func (x *GetLatestTickRequest) GetExchange() string {
+	if x != nil {
+		return x.Exchange
+	}
+	return ""
+}
+
+func (x *GetLatestTickRequest) GetMarketType() string {
+	if x != nil {
+		return x.MarketType
+	}
+	return ""
+}
+
+// 获取最新行情响应
+type GetLatestTickResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	Tick          *Tick                  `protobuf:"bytes,3,opt,name=tick,proto3" json:"tick,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetLatestTickResponse) Reset() {
+	*x = GetLatestTickResponse{}
+	mi := &file_proto_quota_service_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetLatestTickResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetLatestTickResponse) ProtoMessage() {}
+
+func (x *GetLatestTickResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_quota_service_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetLatestTickResponse.ProtoReflect.Descriptor instead.
+func (*GetLatestTickResponse) Descriptor() ([]byte, []int) {
+	return file_proto_quota_service_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *GetLatestTickResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *GetLatestTickResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *GetLatestTickResponse) GetTick() *Tick {
+	if x != nil {
+		return x.Tick
+	}
+	return nil
+}
+
 var File_proto_quota_service_proto protoreflect.FileDescriptor
 
 const file_proto_quota_service_proto_rawDesc = "" +
@@ -504,11 +798,38 @@ const file_proto_quota_service_proto_rawDesc = "" +
 	"\x13HealthCheckResponse\x12\x18\n" +
 	"\ahealthy\x18\x01 \x01(\bR\ahealthy\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1c\n" +
-	"\ttimestamp\x18\x03 \x01(\x03R\ttimestamp2\x8d\x02\n" +
+	"\ttimestamp\x18\x03 \x01(\x03R\ttimestamp\"\xce\x01\n" +
+	"\x0fGetTicksRequest\x12\x16\n" +
+	"\x06symbol\x18\x01 \x01(\tR\x06symbol\x12\x1a\n" +
+	"\bexchange\x18\x02 \x01(\tR\bexchange\x12\x1f\n" +
+	"\vmarket_type\x18\x03 \x01(\tR\n" +
+	"marketType\x12\x1d\n" +
+	"\n" +
+	"start_time\x18\x04 \x01(\x03R\tstartTime\x12\x19\n" +
+	"\bend_time\x18\x05 \x01(\x03R\aendTime\x12\x14\n" +
+	"\x05limit\x18\x06 \x01(\x05R\x05limit\x12\x16\n" +
+	"\x06offset\x18\a \x01(\x05R\x06offset\"\x92\x01\n" +
+	"\x10GetTicksResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12)\n" +
+	"\x05ticks\x18\x03 \x03(\v2\x13.quota_service.TickR\x05ticks\x12\x1f\n" +
+	"\vtotal_count\x18\x04 \x01(\x05R\n" +
+	"totalCount\"k\n" +
+	"\x14GetLatestTickRequest\x12\x16\n" +
+	"\x06symbol\x18\x01 \x01(\tR\x06symbol\x12\x1a\n" +
+	"\bexchange\x18\x02 \x01(\tR\bexchange\x12\x1f\n" +
+	"\vmarket_type\x18\x03 \x01(\tR\n" +
+	"marketType\"t\n" +
+	"\x15GetLatestTickResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12'\n" +
+	"\x04tick\x18\x03 \x01(\v2\x13.quota_service.TickR\x04tick2\xb6\x03\n" +
 	"\fQuotaService\x12Q\n" +
 	"\n" +
 	"IngestTick\x12 .quota_service.IngestTickRequest\x1a!.quota_service.IngestTickResponse\x12T\n" +
-	"\vIngestTicks\x12!.quota_service.IngestTicksRequest\x1a\".quota_service.IngestTicksResponse\x12T\n" +
+	"\vIngestTicks\x12!.quota_service.IngestTicksRequest\x1a\".quota_service.IngestTicksResponse\x12K\n" +
+	"\bGetTicks\x12\x1e.quota_service.GetTicksRequest\x1a\x1f.quota_service.GetTicksResponse\x12Z\n" +
+	"\rGetLatestTick\x12#.quota_service.GetLatestTickRequest\x1a$.quota_service.GetLatestTickResponse\x12T\n" +
 	"\vHealthCheck\x12!.quota_service.HealthCheckRequest\x1a\".quota_service.HealthCheckResponseB2Z0github.com/bryanchen463/quota_data_service/protob\x06proto3"
 
 var (
@@ -523,30 +844,40 @@ func file_proto_quota_service_proto_rawDescGZIP() []byte {
 	return file_proto_quota_service_proto_rawDescData
 }
 
-var file_proto_quota_service_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_proto_quota_service_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_proto_quota_service_proto_goTypes = []any{
-	(*Tick)(nil),                // 0: quota_service.Tick
-	(*IngestTickRequest)(nil),   // 1: quota_service.IngestTickRequest
-	(*IngestTickResponse)(nil),  // 2: quota_service.IngestTickResponse
-	(*IngestTicksRequest)(nil),  // 3: quota_service.IngestTicksRequest
-	(*IngestTicksResponse)(nil), // 4: quota_service.IngestTicksResponse
-	(*HealthCheckRequest)(nil),  // 5: quota_service.HealthCheckRequest
-	(*HealthCheckResponse)(nil), // 6: quota_service.HealthCheckResponse
+	(*Tick)(nil),                  // 0: quota_service.Tick
+	(*IngestTickRequest)(nil),     // 1: quota_service.IngestTickRequest
+	(*IngestTickResponse)(nil),    // 2: quota_service.IngestTickResponse
+	(*IngestTicksRequest)(nil),    // 3: quota_service.IngestTicksRequest
+	(*IngestTicksResponse)(nil),   // 4: quota_service.IngestTicksResponse
+	(*HealthCheckRequest)(nil),    // 5: quota_service.HealthCheckRequest
+	(*HealthCheckResponse)(nil),   // 6: quota_service.HealthCheckResponse
+	(*GetTicksRequest)(nil),       // 7: quota_service.GetTicksRequest
+	(*GetTicksResponse)(nil),      // 8: quota_service.GetTicksResponse
+	(*GetLatestTickRequest)(nil),  // 9: quota_service.GetLatestTickRequest
+	(*GetLatestTickResponse)(nil), // 10: quota_service.GetLatestTickResponse
 }
 var file_proto_quota_service_proto_depIdxs = []int32{
-	0, // 0: quota_service.IngestTickRequest.tick:type_name -> quota_service.Tick
-	0, // 1: quota_service.IngestTicksRequest.ticks:type_name -> quota_service.Tick
-	1, // 2: quota_service.QuotaService.IngestTick:input_type -> quota_service.IngestTickRequest
-	3, // 3: quota_service.QuotaService.IngestTicks:input_type -> quota_service.IngestTicksRequest
-	5, // 4: quota_service.QuotaService.HealthCheck:input_type -> quota_service.HealthCheckRequest
-	2, // 5: quota_service.QuotaService.IngestTick:output_type -> quota_service.IngestTickResponse
-	4, // 6: quota_service.QuotaService.IngestTicks:output_type -> quota_service.IngestTicksResponse
-	6, // 7: quota_service.QuotaService.HealthCheck:output_type -> quota_service.HealthCheckResponse
-	5, // [5:8] is the sub-list for method output_type
-	2, // [2:5] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	0,  // 0: quota_service.IngestTickRequest.tick:type_name -> quota_service.Tick
+	0,  // 1: quota_service.IngestTicksRequest.ticks:type_name -> quota_service.Tick
+	0,  // 2: quota_service.GetTicksResponse.ticks:type_name -> quota_service.Tick
+	0,  // 3: quota_service.GetLatestTickResponse.tick:type_name -> quota_service.Tick
+	1,  // 4: quota_service.QuotaService.IngestTick:input_type -> quota_service.IngestTickRequest
+	3,  // 5: quota_service.QuotaService.IngestTicks:input_type -> quota_service.IngestTicksRequest
+	7,  // 6: quota_service.QuotaService.GetTicks:input_type -> quota_service.GetTicksRequest
+	9,  // 7: quota_service.QuotaService.GetLatestTick:input_type -> quota_service.GetLatestTickRequest
+	5,  // 8: quota_service.QuotaService.HealthCheck:input_type -> quota_service.HealthCheckRequest
+	2,  // 9: quota_service.QuotaService.IngestTick:output_type -> quota_service.IngestTickResponse
+	4,  // 10: quota_service.QuotaService.IngestTicks:output_type -> quota_service.IngestTicksResponse
+	8,  // 11: quota_service.QuotaService.GetTicks:output_type -> quota_service.GetTicksResponse
+	10, // 12: quota_service.QuotaService.GetLatestTick:output_type -> quota_service.GetLatestTickResponse
+	6,  // 13: quota_service.QuotaService.HealthCheck:output_type -> quota_service.HealthCheckResponse
+	9,  // [9:14] is the sub-list for method output_type
+	4,  // [4:9] is the sub-list for method input_type
+	4,  // [4:4] is the sub-list for extension type_name
+	4,  // [4:4] is the sub-list for extension extendee
+	0,  // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_proto_quota_service_proto_init() }
@@ -560,7 +891,7 @@ func file_proto_quota_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_quota_service_proto_rawDesc), len(file_proto_quota_service_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

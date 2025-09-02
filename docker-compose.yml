@@ -8,7 +8,7 @@ services:
       dockerfile: Dockerfile
     container_name: quota-data-service
     ports:
-      - "8080:8080"  # HTTP API
+      - "8082:8080"  # HTTP API
       - "9090:9090"  # gRPC API
     environment:
       # 服务配置
@@ -52,7 +52,7 @@ services:
 
   # ClickHouse 数据库
   clickhouse:
-    image: clickhouse/clickhouse-server:latest
+    image: clickhouse/clickhouse-server:23.8
     container_name: clickhouse
     ports:
       - "9000:9000"   # Native TCP
@@ -67,8 +67,8 @@ services:
     volumes:
       - clickhouse-data:/var/lib/clickhouse
       - clickhouse-logs:/var/log/clickhouse-server
-      - ./clickhouse-config:/etc/clickhouse-server/config.d
-      - ./clickhouse-init:/docker-entrypoint-initdb.d
+      - ./clickhouse-full-config/config.xml:/etc/clickhouse-server/config.xml:ro
+      - ./clickhouse-init:/docker-entrypoint-initdb.d:ro
     networks:
       - quota-network
     restart: unless-stopped

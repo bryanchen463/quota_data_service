@@ -4,8 +4,6 @@ package quota_service;
 
 option go_package = "github.com/bryanchen463/quota_data_service/proto";
 
-import "google/protobuf/timestamp.proto";
-
 // 行情数据服务
 service QuotaService {
   // 推送行情数据
@@ -13,6 +11,12 @@ service QuotaService {
   
   // 批量推送行情数据
   rpc IngestTicks(IngestTicksRequest) returns (IngestTicksResponse);
+  
+  // 获取行情数据
+  rpc GetTicks(GetTicksRequest) returns (GetTicksResponse);
+  
+  // 获取最新行情
+  rpc GetLatestTick(GetLatestTickRequest) returns (GetLatestTickResponse);
   
   // 健康检查
   rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
@@ -88,4 +92,77 @@ message HealthCheckResponse {
   bool healthy = 1;
   string message = 2;
   int64 timestamp = 3;
+}
+
+enum Interval {
+  INTERVAL_1MS = 0;
+  INTERVAL_5MS = 1;
+  INTERVAL_10MS = 2;
+  INTERVAL_30MS = 3;
+  INTERVAL_100MS = 4;
+  INTERVAL_1S = 5;
+  INTERVAL_5S = 6;
+  INTERVAL_10S = 7;
+  INTERVAL_30S = 8;
+  INTERVAL_1M = 9;
+  INTERVAL_5M = 10;
+  INTERVAL_15M = 11;
+  INTERVAL_30M = 12;
+  INTERVAL_1H = 13;
+  INTERVAL_4H = 14;
+  INTERVAL_1D = 15;
+};
+
+// 获取行情数据请求
+message GetTicksRequest {
+  // 交易对符号（可选，支持通配符）
+  string symbol = 1;
+  
+  // 交易所（可选）nets
+  string exchange = 2;
+  
+  // 市场类型（可选）：spot|futures
+  string market_type = 3;
+  
+  // 开始时间（Unix时间戳，秒）
+  int64 start_time = 4;
+  
+  // 结束时间（Unix时间戳，秒）
+  int64 end_time = 5;
+  
+  // 限制返回数量（默认100，最大1000）
+  int32 limit = 6;
+  
+  // 偏移量（用于分页）
+  int32 offset = 7;
+
+  // 时间分区（返回多长时间切片的数据）
+  Interval interval = 8;
+}
+
+// 获取行情数据响应
+message GetTicksResponse {
+  bool success = 1;
+  string message = 2;
+  repeated Tick ticks = 3;
+  int32 total_count = 4;
+}
+
+// 获取最新行情请求
+message GetLatestTickRequest {
+  // 交易对符号（必填）
+  string symbol = 1;
+  
+  // 交易所（可选）
+  string exchange = 2;
+  
+  // 市场类型（可选）：spot|futures
+  string market_type = 3;
+}
+
+// 获取最新行情响应
+message GetLatestTickResponse {
+  bool success = 1;
+  string message = 2;
+  Tick tick = 3;
 } 

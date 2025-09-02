@@ -52,7 +52,7 @@ def create_sample_ticks(count):
     
     for i in range(count):
         tick = quota_service_pb2.Tick(
-            receive_time=time.time() + i,
+            receive_time=time.time()+ i,
             symbol=symbols[i % len(symbols)],
             exchange=exchanges[i % len(exchanges)],
             market_type="spot",

@@ -6,7 +6,7 @@ echo "测试行情数据插入功能..."
 
 # 测试单个 JSON 对象
 echo "1. 测试单个 JSON 对象插入..."
-curl -X POST http://127.0.0.1:8080/ingest \
+curl -X POST http://127.0.0.1:8082/ingest \
   -H 'Content-Type: application/json' \
   -d '{
     "receive_time": 1724131200.123456,
@@ -24,7 +24,7 @@ curl -X POST http://127.0.0.1:8080/ingest \
   }'
 
 echo -e "\n\n2. 测试 JSON 数组批量插入..."
-curl -X POST http://127.0.0.1:8080/ingest \
+curl -X POST http://127.0.0.1:8082/ingest \
   -H 'Content-Type: application/json' \
   -d '[
     {
@@ -58,12 +58,12 @@ curl -X POST http://127.0.0.1:8080/ingest \
   ]'
 
 echo -e "\n\n3. 测试 NDJSON 格式..."
-curl -X POST http://127.0.0.1:8080/ingest \
+curl -X POST http://127.0.0.1:8082/ingest \
   -H 'Content-Type: application/json' \
-  -d '{"receive_time": 1724131200.323456, "symbol": "solusdt", "exchange": "binance", "market_type": "spot", "best_bid_px": 100, "best_bid_sz": 10, "best_ask_px": 101, "best_ask_sz": 8, "bids_px": [100, 99], "bids_sz": [5, 6], "asks_px": [101, 102], "asks_sz": [7, 8]}
-{"receive_time": 1724131200.423456, "symbol": "adausdt", "exchange": "binance", "market_type": "spot", "best_bid_px": 0.5, "best_bid_sz": 1000, "best_ask_px": 0.51, "best_ask_sz": 800, "bids_px": [0.5, 0.49], "bids_sz": [500, 600], "asks_px": [0.51, 0.52], "asks_sz": [400, 500]}'
+  -d '[{"receive_time": 1724131200.323456, "symbol": "solusdt", "exchange": "binance", "market_type": "spot", "best_bid_px": 100, "best_bid_sz": 10, "best_ask_px": 101, "best_ask_sz": 8, "bids_px": [100, 99], "bids_sz": [5, 6], "asks_px": [101, 102], "asks_sz": [7, 8]},
+{"receive_time": 1724131200.423456, "symbol": "adausdt", "exchange": "binance", "market_type": "spot", "best_bid_px": 0.5, "best_bid_sz": 1000, "best_ask_px": 0.51, "best_ask_sz": 800, "bids_px": [0.5, 0.49], "bids_sz": [500, 600], "asks_px": [0.51, 0.52], "asks_sz": [400, 500]}]'
 
 echo -e "\n\n4. 检查健康状态..."
-curl http://127.0.0.1:8080/healthz
+curl http://127.0.0.1:8082/healthz
 
 echo -e "\n\n测试完成！" 

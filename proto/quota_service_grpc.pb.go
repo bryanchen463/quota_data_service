@@ -19,9 +19,11 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	QuotaService_IngestTick_FullMethodName  = "/quota_service.QuotaService/IngestTick"
-	QuotaService_IngestTicks_FullMethodName = "/quota_service.QuotaService/IngestTicks"
-	QuotaService_HealthCheck_FullMethodName = "/quota_service.QuotaService/HealthCheck"
+	QuotaService_IngestTick_FullMethodName    = "/quota_service.QuotaService/IngestTick"
+	QuotaService_IngestTicks_FullMethodName   = "/quota_service.QuotaService/IngestTicks"
+	QuotaService_GetTicks_FullMethodName      = "/quota_service.QuotaService/GetTicks"
+	QuotaService_GetLatestTick_FullMethodName = "/quota_service.QuotaService/GetLatestTick"
+	QuotaService_HealthCheck_FullMethodName   = "/quota_service.QuotaService/HealthCheck"
 )
 
 // QuotaServiceClient is the client API for QuotaService service.
@@ -34,6 +36,10 @@ type QuotaServiceClient interface {
 	IngestTick(ctx context.Context, in *IngestTickRequest, opts ...grpc.CallOption) (*IngestTickResponse, error)
 	// 批量推送行情数据
 	IngestTicks(ctx context.Context, in *IngestTicksRequest, opts ...grpc.CallOption) (*IngestTicksResponse, error)
+	// 获取行情数据
+	GetTicks(ctx context.Context, in *GetTicksRequest, opts ...grpc.CallOption) (*GetTicksResponse, error)
+	// 获取最新行情
+	GetLatestTick(ctx context.Context, in *GetLatestTickRequest, opts ...grpc.CallOption) (*GetLatestTickResponse, error)
 	// 健康检查
 	HealthCheck(ctx context.Context, in *HealthCheckRequest, opts ...grpc.CallOption) (*HealthCheckResponse, error)
 }
@@ -66,6 +72,26 @@ func (c *quotaServiceClient) IngestTicks(ctx context.Context, in *IngestTicksReq
 	return out, nil
 }
 
+func (c *quotaServiceClient) GetTicks(ctx context.Context, in *GetTicksRequest, opts ...grpc.CallOption) (*GetTicksResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetTicksResponse)
+	err := c.cc.Invoke(ctx, QuotaService_GetTicks_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *quotaServiceClient) GetLatestTick(ctx context.Context, in *GetLatestTickRequest, opts ...grpc.CallOption) (*GetLatestTickResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetLatestTickResponse)
+	err := c.cc.Invoke(ctx, QuotaService_GetLatestTick_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *quotaServiceClient) HealthCheck(ctx context.Context, in *HealthCheckRequest, opts ...grpc.CallOption) (*HealthCheckResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HealthCheckResponse)
@@ -86,6 +112,10 @@ type QuotaServiceServer interface {
 	IngestTick(context.Context, *IngestTickRequest) (*IngestTickResponse, error)
 	// 批量推送行情数据
 	IngestTicks(context.Context, *IngestTicksRequest) (*IngestTicksResponse, error)
+	// 获取行情数据
+	GetTicks(context.Context, *GetTicksRequest) (*GetTicksResponse, error)
+	// 获取最新行情
+	GetLatestTick(context.Context, *GetLatestTickRequest) (*GetLatestTickResponse, error)
 	// 健康检查
 	HealthCheck(context.Context, *HealthCheckRequest) (*HealthCheckResponse, error)
 	mustEmbedUnimplementedQuotaServiceServer()
@@ -103,6 +133,12 @@ func (UnimplementedQuotaServiceServer) IngestTick(context.Context, *IngestTickRe
 }
 func (UnimplementedQuotaServiceServer) IngestTicks(context.Context, *IngestTicksRequest) (*IngestTicksResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method IngestTicks not implemented")
+}
+func (UnimplementedQuotaServiceServer) GetTicks(context.Context, *GetTicksRequest) (*GetTicksResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTicks not implemented")
+}
+func (UnimplementedQuotaServiceServer) GetLatestTick(context.Context, *GetLatestTickRequest) (*GetLatestTickResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetLatestTick not implemented")
 }
 func (UnimplementedQuotaServiceServer) HealthCheck(context.Context, *HealthCheckRequest) (*HealthCheckResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method HealthCheck not implemented")
@@ -164,6 +200,42 @@ func _QuotaService_IngestTicks_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _QuotaService_GetTicks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTicksRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QuotaServiceServer).GetTicks(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: QuotaService_GetTicks_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QuotaServiceServer).GetTicks(ctx, req.(*GetTicksRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _QuotaService_GetLatestTick_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetLatestTickRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QuotaServiceServer).GetLatestTick(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: QuotaService_GetLatestTick_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QuotaServiceServer).GetLatestTick(ctx, req.(*GetLatestTickRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _QuotaService_HealthCheck_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HealthCheckRequest)
 	if err := dec(in); err != nil {
@@ -196,6 +268,14 @@ var QuotaService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "IngestTicks",
 			Handler:    _QuotaService_IngestTicks_Handler,
+		},
+		{
+			MethodName: "GetTicks",
+			Handler:    _QuotaService_GetTicks_Handler,
+		},
+		{
+			MethodName: "GetLatestTick",
+			Handler:    _QuotaService_GetLatestTick_Handler,
 		},
 		{
 			MethodName: "HealthCheck",

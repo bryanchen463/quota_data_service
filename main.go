@@ -52,17 +52,18 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 
-	ch "github.com/ClickHouse/clickhouse-go/v2"
-	chlib "github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	pb "github.com/bryanchen463/quota_data_service/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
+
+var ErrNoData = errors.New("no data found for the specified symbol")
 
 // Tick 与 ClickHouse 表字段一一对应
 // receive_time 使用秒（float64）传入，写入前转换为 time.Time（微秒精度）
@@ -137,7 +138,7 @@ func getenvDuration(key string, def time.Duration) time.Duration {
 
 // ClickHouse 客户端与批量写入器
 type CHWriter struct {
-	conn  chlib.Conn
+	pool  *CHPool
 	db    string
 	table string
 	stmt  string
@@ -146,50 +147,52 @@ type CHWriter struct {
 
 // Ping 检查 ClickHouse 连接健康状态
 func (w *CHWriter) Ping(ctx context.Context) error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	return w.conn.Ping(ctx)
+	return w.pool.Ping(ctx)
 }
 
 func NewCHWriter(ctx context.Context, addr, user, pass, db, table string) (*CHWriter, error) {
-	opts := &ch.Options{
-		Addr:        []string{addr},
-		Auth:        ch.Auth{Database: db, Username: user, Password: pass},
-		Compression: &ch.Compression{Method: ch.CompressionLZ4},
-		Settings: ch.Settings{
-			"send_logs_level":                "warning",
-			"allow_experimental_object_type": 1,
-			"max_execution_time":             60,        // 最大执行时间60秒
-			"max_block_size":                 100000,    // 增加块大小
-			"min_insert_block_size_rows":     1000,      // 最小插入块行数
-			"min_insert_block_size_bytes":    268435456, // 最小插入块大小256MB
-		},
-		DialTimeout:      10 * time.Second, // 增加连接超时
-		ConnOpenStrategy: ch.ConnOpenInOrder,
-		MaxOpenConns:     10,               // 最大连接数
-		MaxIdleConns:     5,                // 最大空闲连接数
-		ConnMaxLifetime:  30 * time.Minute, // 连接最大生命周期
+	// 创建连接池配置
+	poolConfig := &CHPoolConfig{
+		Addr:     addr,
+		User:     user,
+		Password: pass,
+		Database: db,
+		Table:    table,
+
+		// 连接池配置
+		MaxConnections: 10,
+		MinConnections: 2,
+		MaxIdleTime:    5 * time.Minute,
+		MaxLifetime:    30 * time.Minute,
+
+		// 连接选项
+		DialTimeout:             10 * time.Second,
+		MaxOpenConns:            10,
+		MaxIdleConns:            5,
+		ConnMaxLifetime:         30 * time.Minute,
+		ConnMaxIdleTime:         5 * time.Minute,
+		Compression:             true,
+		MaxExecutionTime:        60 * time.Second,
+		MaxBlockSize:            100000,
+		MinInsertBlockSizeRows:  1000,
+		MinInsertBlockSizeBytes: 268435456,
 	}
 
-	// 重试连接逻辑
-	var conn chlib.Conn
-	var err error
-	for i := 0; i < 3; i++ { // 重试3次
-		conn, err = ch.Open(opts)
-		if err == nil {
-			break
-		}
-		log.Printf("ClickHouse connection attempt %d failed: %v", i+1, err)
-		if i < 2 { // 不是最后一次尝试
-			time.Sleep(time.Duration(i+1) * time.Second) // 递增延迟
-		}
-	}
+	// 创建连接池
+	pool, err := NewCHPool(poolConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to ClickHouse after 3 attempts: %v", err)
+		return nil, fmt.Errorf("failed to create clickhouse connection pool: %w", err)
 	}
 
-	w := &CHWriter{conn: conn, db: db, table: table}
+	// 测试连接池
+	if err := pool.Ping(ctx); err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("failed to ping clickhouse pool: %w", err)
+	}
+
+	w := &CHWriter{pool: pool, db: db, table: table}
 	if err := w.ensureSchema(ctx); err != nil {
+		pool.Close()
 		return nil, err
 	}
 	w.stmt = fmt.Sprintf("INSERT INTO %s.%s (receive_time,symbol,exchange,market_type,best_bid_px,best_bid_sz,best_ask_px,best_ask_sz,bids_px,bids_sz,asks_px,asks_sz) VALUES", db, table)
@@ -215,16 +218,13 @@ func (w *CHWriter) ensureSchema(ctx context.Context) error {
 	ORDER BY (symbol, receive_time)
 	SETTINGS index_granularity = 8192;`
 	q := fmt.Sprintf(sql, w.db, w.table)
-	return w.conn.Exec(ctx, q)
+	return w.pool.Exec(ctx, q)
 }
 
 func (w *CHWriter) InsertBatch(ctx context.Context, tickers []Tick) error {
 	if len(tickers) == 0 {
 		return nil
 	}
-
-	w.mu.Lock()
-	defer w.mu.Unlock()
 
 	// 重试插入逻辑
 	var lastErr error
@@ -235,9 +235,22 @@ func (w *CHWriter) InsertBatch(ctx context.Context, tickers []Tick) error {
 		default:
 		}
 
-		// 准备批量插入
-		batch, err := w.conn.PrepareBatch(ctx, w.stmt)
+		// 从连接池获取连接
+		conn, err := w.pool.Get(ctx)
 		if err != nil {
+			lastErr = fmt.Errorf("failed to get connection from pool: %v", err)
+			log.Printf("ClickHouse get connection attempt %d failed: %v", attempt, lastErr)
+			if attempt < 3 {
+				time.Sleep(time.Duration(attempt) * time.Second)
+				continue
+			}
+			return lastErr
+		}
+
+		// 准备批量插入
+		batch, err := conn.PrepareBatch(ctx, w.stmt)
+		if err != nil {
+			w.pool.Put(conn)
 			lastErr = fmt.Errorf("prepare batch failed: %v", err)
 			log.Printf("ClickHouse prepare batch attempt %d failed: %v", attempt, lastErr)
 			if attempt < 3 {
@@ -256,6 +269,8 @@ func (w *CHWriter) InsertBatch(ctx context.Context, tickers []Tick) error {
 
 		// 执行插入
 		err = batch.Send()
+		w.pool.Put(conn) // 无论成功失败都要返回连接
+
 		if err == nil {
 			log.Printf("successfully inserted %d ticks to ClickHouse", len(tickers))
 			return nil
@@ -463,6 +478,8 @@ func main() {
 	// 启动 HTTP 服务器
 	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200); _, _ = w.Write([]byte("ok")) })
 	http.HandleFunc("/ingest", makeIngestHandler(batcher.Input()))
+	http.HandleFunc("/ticks", makeGetTicksHandler(writer.pool))
+	http.HandleFunc("/latest", makeGetLatestTickHandler(writer.pool))
 
 	httpSrv := &http.Server{Addr: CONFIG.HTTPAddr, ReadTimeout: 5 * time.Second, WriteTimeout: 5 * time.Second}
 	go func() {
@@ -473,7 +490,7 @@ func main() {
 
 	// 启动 gRPC 服务器
 	grpcSrv := grpc.NewServer()
-	quotaService := NewQuotaServiceServer(batcher.Input())
+	quotaService := NewQuotaServiceServer(batcher.Input(), writer.pool)
 	pb.RegisterQuotaServiceServer(grpcSrv, quotaService)
 	reflection.Register(grpcSrv) // 启用反射，方便调试
 
@@ -502,4 +519,298 @@ func main() {
 	grpcSrv.GracefulStop()
 
 	log.Printf("stopped")
+}
+
+// HTTP 查询接口处理器
+
+// makeGetTicksHandler 创建获取行情数据的 HTTP 处理器
+func makeGetTicksHandler(pool *CHPool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		// 解析查询参数
+		symbol := r.URL.Query().Get("symbol")
+		exchange := r.URL.Query().Get("exchange")
+		marketType := r.URL.Query().Get("market_type")
+
+		var startTime, endTime int64
+		if st := r.URL.Query().Get("start_time"); st != "" {
+			if t, err := strconv.ParseInt(st, 10, 64); err == nil {
+				startTime = t
+			}
+		}
+		if et := r.URL.Query().Get("end_time"); et != "" {
+			if t, err := strconv.ParseInt(et, 10, 64); err == nil {
+				endTime = t
+			}
+		}
+
+		limit := 100
+		if l := r.URL.Query().Get("limit"); l != "" {
+			if n, err := strconv.Atoi(l); err == nil && n > 0 && n <= 1000 {
+				limit = n
+			}
+		}
+
+		offset := 0
+		if o := r.URL.Query().Get("offset"); o != "" {
+			if n, err := strconv.Atoi(o); err == nil && n >= 0 {
+				offset = n
+			}
+		}
+
+		// 构建查询条件
+		whereConditions := []string{}
+		args := []interface{}{}
+
+		if symbol != "" {
+			if strings.Contains(symbol, "*") {
+				pattern := strings.ReplaceAll(symbol, "*", "%")
+				whereConditions = append(whereConditions, "symbol LIKE ?")
+				args = append(args, pattern)
+			} else {
+				whereConditions = append(whereConditions, "symbol = ?")
+				args = append(args, symbol)
+			}
+		}
+
+		if exchange != "" {
+			whereConditions = append(whereConditions, "exchange = ?")
+			args = append(args, exchange)
+		}
+
+		if marketType != "" {
+			whereConditions = append(whereConditions, "market_type = ?")
+			args = append(args, marketType)
+		}
+
+		if startTime > 0 {
+			whereConditions = append(whereConditions, "receive_time >= ?")
+			args = append(args, time.Unix(startTime, 0))
+		}
+
+		if endTime > 0 {
+			whereConditions = append(whereConditions, "receive_time <= ?")
+			args = append(args, time.Unix(endTime, 0))
+		}
+
+		// 构建查询SQL
+		ticks, err := getTickers(whereConditions, args, limit, offset, pool, r.Context())
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(fmt.Sprintf(`{"error": "get tickers failed: %v"}`, err)))
+			return
+		}
+
+		// 返回 JSON 响应
+		w.Header().Set("Content-Type", "application/json")
+		response := map[string]interface{}{
+			"success":     true,
+			"message":     "query completed successfully",
+			"ticks":       ticks,
+			"total_count": len(ticks),
+		}
+
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			log.Printf("GetTicks HTTP encode error: %v", err)
+		}
+	}
+}
+
+func getTickers(whereConditions []string, args []interface{}, limit int, offset int, pool *CHPool, ctx context.Context) ([]Tick, error) {
+	query := fmt.Sprintf(`
+			SELECT 
+				receive_time,
+				symbol,
+				exchange,
+				market_type,
+				best_bid_px,
+				best_bid_sz,
+				best_ask_px,
+				best_ask_sz,
+				bids_px,
+				bids_sz,
+				asks_px,
+				asks_sz
+			FROM %s.%s
+		`, CONFIG.CHDatabase, CONFIG.CHTable)
+
+	if len(whereConditions) > 0 {
+		query += " WHERE " + strings.Join(whereConditions, " AND ")
+	}
+
+	query += " ORDER BY receive_time DESC LIMIT ? OFFSET ?"
+	args = append(args, limit, offset)
+
+	// 执行查询
+	rows, err := pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %v", err)
+	}
+	defer rows.Close()
+
+	// 解析结果
+	ticks := make([]Tick, 0)
+	for rows.Next() {
+		var tick Tick
+		var receiveTime time.Time
+		var bidsPx, bidsSz, asksPx, asksSz []float64
+
+		err := rows.Scan(
+			&receiveTime,
+			&tick.Symbol,
+			&tick.Exchange,
+			&tick.MarketType,
+			&tick.BestBidPx,
+			&tick.BestBidSz,
+			&tick.BestAskPx,
+			&tick.BestAskSz,
+			&bidsPx,
+			&bidsSz,
+			&asksPx,
+			&asksSz,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan failed: %v", err)
+		}
+
+		// 转换时间戳
+		tick.ReceiveTime = float64(receiveTime.Unix()) + float64(receiveTime.Nanosecond())/1e9
+		tick.BidsPx = bidsPx
+		tick.BidsSz = bidsSz
+		tick.AsksPx = asksPx
+		tick.AsksSz = asksSz
+
+		ticks = append(ticks, tick)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %v", err)
+	}
+	return ticks, nil
+}
+
+// makeGetLatestTickHandler 创建获取最新行情的 HTTP 处理器
+func makeGetLatestTickHandler(pool *CHPool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		// 解析查询参数
+		symbol := r.URL.Query().Get("symbol")
+		if symbol == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"error": "symbol parameter is required"}`))
+			return
+		}
+
+		exchange := r.URL.Query().Get("exchange")
+		marketType := r.URL.Query().Get("market_type")
+
+		// 构建查询条件
+		whereConditions := []string{"symbol = ?"}
+		args := []interface{}{symbol}
+
+		if exchange != "" {
+			whereConditions = append(whereConditions, "exchange = ?")
+			args = append(args, exchange)
+		}
+
+		if marketType != "" {
+			whereConditions = append(whereConditions, "market_type = ?")
+			args = append(args, marketType)
+		}
+
+		// 构建查询SQL - 获取最新的一条记录
+		tick, receiveTime, bidsPx, bidsSz, asksPx, asksSz, err := getTick(whereConditions, pool, r, args, w)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(fmt.Sprintf(`{"error": "get tick failed: %v"}`, err)))
+			return
+		}
+
+		// 转换时间戳
+		tick.ReceiveTime = float64(receiveTime.Unix()) + float64(receiveTime.Nanosecond())/1e9
+		tick.BidsPx = bidsPx
+		tick.BidsSz = bidsSz
+		tick.AsksPx = asksPx
+		tick.AsksSz = asksSz
+
+		// 返回 JSON 响应
+		w.Header().Set("Content-Type", "application/json")
+		response := map[string]interface{}{
+			"success": true,
+			"message": "latest tick retrieved successfully",
+			"tick":    tick,
+		}
+
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			log.Printf("GetLatestTick HTTP encode error: %v", err)
+		}
+	}
+}
+
+func getTick(whereConditions []string, pool *CHPool, r *http.Request, args []interface{}, w http.ResponseWriter) (Tick, time.Time, []float64, []float64, []float64, []float64, error) {
+	query := fmt.Sprintf(`
+			SELECT 
+				receive_time,
+				symbol,
+				exchange,
+				market_type,
+				best_bid_px,
+				best_bid_sz,
+				best_ask_px,
+				best_ask_sz,
+				bids_px,
+				bids_sz,
+				asks_px,
+				asks_sz
+			FROM %s.%s
+			WHERE %s
+			ORDER BY receive_time DESC
+			LIMIT 1
+		`, CONFIG.CHDatabase, CONFIG.CHTable, strings.Join(whereConditions, " AND "))
+
+	// 执行查询
+	rows, err := pool.Query(r.Context(), query, args...)
+	if err != nil {
+		log.Printf("GetLatestTick HTTP query error: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(fmt.Sprintf(`{"error": "query failed: %v"}`, err)))
+		return Tick{}, time.Time{}, nil, nil, nil, nil, err
+	}
+	defer rows.Close()
+
+	// 解析结果
+	if !rows.Next() {
+		return Tick{}, time.Time{}, nil, nil, nil, nil, ErrNoData
+	}
+
+	var tick Tick
+	var receiveTime time.Time
+	var bidsPx, bidsSz, asksPx, asksSz []float64
+
+	err = rows.Scan(
+		&receiveTime,
+		&tick.Symbol,
+		&tick.Exchange,
+		&tick.MarketType,
+		&tick.BestBidPx,
+		&tick.BestBidSz,
+		&tick.BestAskPx,
+		&tick.BestAskSz,
+		&bidsPx,
+		&bidsSz,
+		&asksPx,
+		&asksSz,
+	)
+	if err != nil {
+		return Tick{}, time.Time{}, nil, nil, nil, nil, fmt.Errorf("scan failed: %v", err)
+	}
+	return tick, receiveTime, bidsPx, bidsSz, asksPx, asksSz, nil
 }
