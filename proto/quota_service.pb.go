@@ -9,7 +9,6 @@ package proto
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	_ "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -21,6 +20,94 @@ const (
 	// Verify that runtime/protoimpl is sufficiently up-to-date.
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
+
+type Interval int32
+
+const (
+	Interval_INTERVAL_1MS   Interval = 0
+	Interval_INTERVAL_5MS   Interval = 1
+	Interval_INTERVAL_10MS  Interval = 2
+	Interval_INTERVAL_30MS  Interval = 3
+	Interval_INTERVAL_100MS Interval = 4
+	Interval_INTERVAL_1S    Interval = 5
+	Interval_INTERVAL_5S    Interval = 6
+	Interval_INTERVAL_10S   Interval = 7
+	Interval_INTERVAL_30S   Interval = 8
+	Interval_INTERVAL_1M    Interval = 9
+	Interval_INTERVAL_5M    Interval = 10
+	Interval_INTERVAL_15M   Interval = 11
+	Interval_INTERVAL_30M   Interval = 12
+	Interval_INTERVAL_1H    Interval = 13
+	Interval_INTERVAL_4H    Interval = 14
+	Interval_INTERVAL_1D    Interval = 15
+)
+
+// Enum value maps for Interval.
+var (
+	Interval_name = map[int32]string{
+		0:  "INTERVAL_1MS",
+		1:  "INTERVAL_5MS",
+		2:  "INTERVAL_10MS",
+		3:  "INTERVAL_30MS",
+		4:  "INTERVAL_100MS",
+		5:  "INTERVAL_1S",
+		6:  "INTERVAL_5S",
+		7:  "INTERVAL_10S",
+		8:  "INTERVAL_30S",
+		9:  "INTERVAL_1M",
+		10: "INTERVAL_5M",
+		11: "INTERVAL_15M",
+		12: "INTERVAL_30M",
+		13: "INTERVAL_1H",
+		14: "INTERVAL_4H",
+		15: "INTERVAL_1D",
+	}
+	Interval_value = map[string]int32{
+		"INTERVAL_1MS":   0,
+		"INTERVAL_5MS":   1,
+		"INTERVAL_10MS":  2,
+		"INTERVAL_30MS":  3,
+		"INTERVAL_100MS": 4,
+		"INTERVAL_1S":    5,
+		"INTERVAL_5S":    6,
+		"INTERVAL_10S":   7,
+		"INTERVAL_30S":   8,
+		"INTERVAL_1M":    9,
+		"INTERVAL_5M":    10,
+		"INTERVAL_15M":   11,
+		"INTERVAL_30M":   12,
+		"INTERVAL_1H":    13,
+		"INTERVAL_4H":    14,
+		"INTERVAL_1D":    15,
+	}
+)
+
+func (x Interval) Enum() *Interval {
+	p := new(Interval)
+	*p = x
+	return p
+}
+
+func (x Interval) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Interval) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_quota_service_proto_enumTypes[0].Descriptor()
+}
+
+func (Interval) Type() protoreflect.EnumType {
+	return &file_proto_quota_service_proto_enumTypes[0]
+}
+
+func (x Interval) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Interval.Descriptor instead.
+func (Interval) EnumDescriptor() ([]byte, []int) {
+	return file_proto_quota_service_proto_rawDescGZIP(), []int{0}
+}
 
 // 单个行情数据
 type Tick struct {
@@ -474,7 +561,7 @@ type GetTicksRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// 交易对符号（可选，支持通配符）
 	Symbol string `protobuf:"bytes,1,opt,name=symbol,proto3" json:"symbol,omitempty"`
-	// 交易所（可选）
+	// 交易所（可选）nets
 	Exchange string `protobuf:"bytes,2,opt,name=exchange,proto3" json:"exchange,omitempty"`
 	// 市场类型（可选）：spot|futures
 	MarketType string `protobuf:"bytes,3,opt,name=market_type,json=marketType,proto3" json:"market_type,omitempty"`
@@ -485,7 +572,9 @@ type GetTicksRequest struct {
 	// 限制返回数量（默认100，最大1000）
 	Limit int32 `protobuf:"varint,6,opt,name=limit,proto3" json:"limit,omitempty"`
 	// 偏移量（用于分页）
-	Offset        int32 `protobuf:"varint,7,opt,name=offset,proto3" json:"offset,omitempty"`
+	Offset int32 `protobuf:"varint,7,opt,name=offset,proto3" json:"offset,omitempty"`
+	// 时间分区（返回多长时间切片的数据）
+	Interval      Interval `protobuf:"varint,8,opt,name=interval,proto3,enum=quota_service.Interval" json:"interval,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -567,6 +656,13 @@ func (x *GetTicksRequest) GetOffset() int32 {
 		return x.Offset
 	}
 	return 0
+}
+
+func (x *GetTicksRequest) GetInterval() Interval {
+	if x != nil {
+		return x.Interval
+	}
+	return Interval_INTERVAL_1MS
 }
 
 // 获取行情数据响应
@@ -767,7 +863,7 @@ var File_proto_quota_service_proto protoreflect.FileDescriptor
 
 const file_proto_quota_service_proto_rawDesc = "" +
 	"\n" +
-	"\x19proto/quota_service.proto\x12\rquota_service\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe2\x02\n" +
+	"\x19proto/quota_service.proto\x12\rquota_service\"\xe2\x02\n" +
 	"\x04Tick\x12!\n" +
 	"\freceive_time\x18\x01 \x01(\x01R\vreceiveTime\x12\x16\n" +
 	"\x06symbol\x18\x02 \x01(\tR\x06symbol\x12\x1a\n" +
@@ -798,7 +894,7 @@ const file_proto_quota_service_proto_rawDesc = "" +
 	"\x13HealthCheckResponse\x12\x18\n" +
 	"\ahealthy\x18\x01 \x01(\bR\ahealthy\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1c\n" +
-	"\ttimestamp\x18\x03 \x01(\x03R\ttimestamp\"\xce\x01\n" +
+	"\ttimestamp\x18\x03 \x01(\x03R\ttimestamp\"\x83\x02\n" +
 	"\x0fGetTicksRequest\x12\x16\n" +
 	"\x06symbol\x18\x01 \x01(\tR\x06symbol\x12\x1a\n" +
 	"\bexchange\x18\x02 \x01(\tR\bexchange\x12\x1f\n" +
@@ -808,7 +904,8 @@ const file_proto_quota_service_proto_rawDesc = "" +
 	"start_time\x18\x04 \x01(\x03R\tstartTime\x12\x19\n" +
 	"\bend_time\x18\x05 \x01(\x03R\aendTime\x12\x14\n" +
 	"\x05limit\x18\x06 \x01(\x05R\x05limit\x12\x16\n" +
-	"\x06offset\x18\a \x01(\x05R\x06offset\"\x92\x01\n" +
+	"\x06offset\x18\a \x01(\x05R\x06offset\x123\n" +
+	"\binterval\x18\b \x01(\x0e2\x17.quota_service.IntervalR\binterval\"\x92\x01\n" +
 	"\x10GetTicksResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12)\n" +
@@ -823,7 +920,25 @@ const file_proto_quota_service_proto_rawDesc = "" +
 	"\x15GetLatestTickResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12'\n" +
-	"\x04tick\x18\x03 \x01(\v2\x13.quota_service.TickR\x04tick2\xb6\x03\n" +
+	"\x04tick\x18\x03 \x01(\v2\x13.quota_service.TickR\x04tick*\xa7\x02\n" +
+	"\bInterval\x12\x10\n" +
+	"\fINTERVAL_1MS\x10\x00\x12\x10\n" +
+	"\fINTERVAL_5MS\x10\x01\x12\x11\n" +
+	"\rINTERVAL_10MS\x10\x02\x12\x11\n" +
+	"\rINTERVAL_30MS\x10\x03\x12\x12\n" +
+	"\x0eINTERVAL_100MS\x10\x04\x12\x0f\n" +
+	"\vINTERVAL_1S\x10\x05\x12\x0f\n" +
+	"\vINTERVAL_5S\x10\x06\x12\x10\n" +
+	"\fINTERVAL_10S\x10\a\x12\x10\n" +
+	"\fINTERVAL_30S\x10\b\x12\x0f\n" +
+	"\vINTERVAL_1M\x10\t\x12\x0f\n" +
+	"\vINTERVAL_5M\x10\n" +
+	"\x12\x10\n" +
+	"\fINTERVAL_15M\x10\v\x12\x10\n" +
+	"\fINTERVAL_30M\x10\f\x12\x0f\n" +
+	"\vINTERVAL_1H\x10\r\x12\x0f\n" +
+	"\vINTERVAL_4H\x10\x0e\x12\x0f\n" +
+	"\vINTERVAL_1D\x10\x0f2\xb6\x03\n" +
 	"\fQuotaService\x12Q\n" +
 	"\n" +
 	"IngestTick\x12 .quota_service.IngestTickRequest\x1a!.quota_service.IngestTickResponse\x12T\n" +
@@ -844,40 +959,43 @@ func file_proto_quota_service_proto_rawDescGZIP() []byte {
 	return file_proto_quota_service_proto_rawDescData
 }
 
+var file_proto_quota_service_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_proto_quota_service_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_proto_quota_service_proto_goTypes = []any{
-	(*Tick)(nil),                  // 0: quota_service.Tick
-	(*IngestTickRequest)(nil),     // 1: quota_service.IngestTickRequest
-	(*IngestTickResponse)(nil),    // 2: quota_service.IngestTickResponse
-	(*IngestTicksRequest)(nil),    // 3: quota_service.IngestTicksRequest
-	(*IngestTicksResponse)(nil),   // 4: quota_service.IngestTicksResponse
-	(*HealthCheckRequest)(nil),    // 5: quota_service.HealthCheckRequest
-	(*HealthCheckResponse)(nil),   // 6: quota_service.HealthCheckResponse
-	(*GetTicksRequest)(nil),       // 7: quota_service.GetTicksRequest
-	(*GetTicksResponse)(nil),      // 8: quota_service.GetTicksResponse
-	(*GetLatestTickRequest)(nil),  // 9: quota_service.GetLatestTickRequest
-	(*GetLatestTickResponse)(nil), // 10: quota_service.GetLatestTickResponse
+	(Interval)(0),                 // 0: quota_service.Interval
+	(*Tick)(nil),                  // 1: quota_service.Tick
+	(*IngestTickRequest)(nil),     // 2: quota_service.IngestTickRequest
+	(*IngestTickResponse)(nil),    // 3: quota_service.IngestTickResponse
+	(*IngestTicksRequest)(nil),    // 4: quota_service.IngestTicksRequest
+	(*IngestTicksResponse)(nil),   // 5: quota_service.IngestTicksResponse
+	(*HealthCheckRequest)(nil),    // 6: quota_service.HealthCheckRequest
+	(*HealthCheckResponse)(nil),   // 7: quota_service.HealthCheckResponse
+	(*GetTicksRequest)(nil),       // 8: quota_service.GetTicksRequest
+	(*GetTicksResponse)(nil),      // 9: quota_service.GetTicksResponse
+	(*GetLatestTickRequest)(nil),  // 10: quota_service.GetLatestTickRequest
+	(*GetLatestTickResponse)(nil), // 11: quota_service.GetLatestTickResponse
 }
 var file_proto_quota_service_proto_depIdxs = []int32{
-	0,  // 0: quota_service.IngestTickRequest.tick:type_name -> quota_service.Tick
-	0,  // 1: quota_service.IngestTicksRequest.ticks:type_name -> quota_service.Tick
-	0,  // 2: quota_service.GetTicksResponse.ticks:type_name -> quota_service.Tick
-	0,  // 3: quota_service.GetLatestTickResponse.tick:type_name -> quota_service.Tick
-	1,  // 4: quota_service.QuotaService.IngestTick:input_type -> quota_service.IngestTickRequest
-	3,  // 5: quota_service.QuotaService.IngestTicks:input_type -> quota_service.IngestTicksRequest
-	7,  // 6: quota_service.QuotaService.GetTicks:input_type -> quota_service.GetTicksRequest
-	9,  // 7: quota_service.QuotaService.GetLatestTick:input_type -> quota_service.GetLatestTickRequest
-	5,  // 8: quota_service.QuotaService.HealthCheck:input_type -> quota_service.HealthCheckRequest
-	2,  // 9: quota_service.QuotaService.IngestTick:output_type -> quota_service.IngestTickResponse
-	4,  // 10: quota_service.QuotaService.IngestTicks:output_type -> quota_service.IngestTicksResponse
-	8,  // 11: quota_service.QuotaService.GetTicks:output_type -> quota_service.GetTicksResponse
-	10, // 12: quota_service.QuotaService.GetLatestTick:output_type -> quota_service.GetLatestTickResponse
-	6,  // 13: quota_service.QuotaService.HealthCheck:output_type -> quota_service.HealthCheckResponse
-	9,  // [9:14] is the sub-list for method output_type
-	4,  // [4:9] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	1,  // 0: quota_service.IngestTickRequest.tick:type_name -> quota_service.Tick
+	1,  // 1: quota_service.IngestTicksRequest.ticks:type_name -> quota_service.Tick
+	0,  // 2: quota_service.GetTicksRequest.interval:type_name -> quota_service.Interval
+	1,  // 3: quota_service.GetTicksResponse.ticks:type_name -> quota_service.Tick
+	1,  // 4: quota_service.GetLatestTickResponse.tick:type_name -> quota_service.Tick
+	2,  // 5: quota_service.QuotaService.IngestTick:input_type -> quota_service.IngestTickRequest
+	4,  // 6: quota_service.QuotaService.IngestTicks:input_type -> quota_service.IngestTicksRequest
+	8,  // 7: quota_service.QuotaService.GetTicks:input_type -> quota_service.GetTicksRequest
+	10, // 8: quota_service.QuotaService.GetLatestTick:input_type -> quota_service.GetLatestTickRequest
+	6,  // 9: quota_service.QuotaService.HealthCheck:input_type -> quota_service.HealthCheckRequest
+	3,  // 10: quota_service.QuotaService.IngestTick:output_type -> quota_service.IngestTickResponse
+	5,  // 11: quota_service.QuotaService.IngestTicks:output_type -> quota_service.IngestTicksResponse
+	9,  // 12: quota_service.QuotaService.GetTicks:output_type -> quota_service.GetTicksResponse
+	11, // 13: quota_service.QuotaService.GetLatestTick:output_type -> quota_service.GetLatestTickResponse
+	7,  // 14: quota_service.QuotaService.HealthCheck:output_type -> quota_service.HealthCheckResponse
+	10, // [10:15] is the sub-list for method output_type
+	5,  // [5:10] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_proto_quota_service_proto_init() }
@@ -890,13 +1008,14 @@ func file_proto_quota_service_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_quota_service_proto_rawDesc), len(file_proto_quota_service_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_proto_quota_service_proto_goTypes,
 		DependencyIndexes: file_proto_quota_service_proto_depIdxs,
+		EnumInfos:         file_proto_quota_service_proto_enumTypes,
 		MessageInfos:      file_proto_quota_service_proto_msgTypes,
 	}.Build()
 	File_proto_quota_service_proto = out.File

@@ -267,6 +267,141 @@ func TestGetTicks(t *testing.T) {
 	}
 }
 
+// TestGetTicksWithInterval 测试按时间间隔采样获取历史行情数据
+func TestGetTicksWithInterval(t *testing.T) {
+	tests := []struct {
+		name           string
+		symbol         string
+		exchange       string
+		marketType     string
+		startTimestamp int64
+		endTimestamp   int64
+		interval       pb.Interval
+		limit          int32
+		offset         int32
+		expectError    bool
+	}{
+		{
+			name:           "1秒间隔采样",
+			symbol:         "BTCUSDT",
+			exchange:       "binance",
+			marketType:     "spot",
+			startTimestamp: time.Now().Add(-1 * time.Hour).Unix(),
+			endTimestamp:   time.Now().Unix(),
+			interval:       pb.Interval_INTERVAL_1S,
+			limit:          50,
+			offset:         0,
+			expectError:    false,
+		},
+		{
+			name:           "5分钟间隔采样",
+			symbol:         "BTCUSDT",
+			exchange:       "binance",
+			marketType:     "spot",
+			startTimestamp: time.Now().Add(-24 * time.Hour).Unix(),
+			endTimestamp:   time.Now().Unix(),
+			interval:       pb.Interval_INTERVAL_5M,
+			limit:          100,
+			offset:         0,
+			expectError:    false,
+		},
+		{
+			name:           "1小时间隔采样",
+			symbol:         "BTCUSDT",
+			exchange:       "binance",
+			marketType:     "spot",
+			startTimestamp: time.Now().Add(-7 * 24 * time.Hour).Unix(),
+			endTimestamp:   time.Now().Unix(),
+			interval:       pb.Interval_INTERVAL_1H,
+			limit:          168, // 一周的小时数
+			offset:         0,
+			expectError:    false,
+		},
+		{
+			name:           "1天间隔采样",
+			symbol:         "BTCUSDT",
+			exchange:       "binance",
+			marketType:     "spot",
+			startTimestamp: time.Now().Add(-30 * 24 * time.Hour).Unix(),
+			endTimestamp:   time.Now().Unix(),
+			interval:       pb.Interval_INTERVAL_1D,
+			limit:          30,
+			offset:         0,
+			expectError:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+
+			if p == nil {
+				t.Skip("连接池未初始化，跳过测试")
+				return
+			}
+
+			ticks, err := GetTicksWithInterval(ctx, tt.symbol, tt.exchange, tt.marketType, tt.startTimestamp, tt.endTimestamp, tt.interval, tt.limit, tt.offset)
+
+			if tt.expectError {
+				assert.Error(t, err)
+				assert.Nil(t, ticks)
+			} else {
+				if err != nil {
+					t.Logf("获取采样历史行情失败（可能是连接问题）: %v", err)
+					return
+				}
+				assert.NoError(t, err)
+				assert.NotNil(t, ticks)
+				// 验证返回的数据结构
+				for _, tick := range ticks {
+					assert.Equal(t, tt.symbol, tick.Symbol)
+					assert.Equal(t, tt.exchange, tick.Exchange)
+					assert.Equal(t, tt.marketType, tick.MarketType)
+				}
+			}
+		})
+	}
+}
+
+// TestConvenienceSamplingFunctions 测试便捷采样函数
+func TestConvenienceSamplingFunctions(t *testing.T) {
+	if p == nil {
+		t.Skip("连接池未初始化，跳过测试")
+		return
+	}
+
+	ctx := context.Background()
+	symbol := "BTCUSDT"
+	exchange := "binance"
+	marketType := "spot"
+	startTime := time.Now().Add(-1 * time.Hour).Unix()
+	endTime := time.Now().Unix()
+
+	tests := []struct {
+		name     string
+		function func(context.Context, string, string, string, int64, int64) ([]*pb.Tick, error)
+	}{
+		{"1秒采样", GetTicks1Second},
+		{"5秒采样", GetTicks5Second},
+		{"1分钟采样", GetTicks1Minute},
+		{"5分钟采样", GetTicks5Minute},
+		{"1小时采样", GetTicks1Hour},
+		{"1天采样", GetTicks1Day},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ticks, err := tt.function(ctx, symbol, exchange, marketType, startTime, endTime)
+			if err != nil {
+				t.Logf("%s 失败（可能是连接问题）: %v", tt.name, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.NotNil(t, ticks)
+		})
+	}
+}
+
 // TestInsertTick 测试插入行情数据
 func TestInsertTick(t *testing.T) {
 	tests := []struct {

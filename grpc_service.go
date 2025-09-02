@@ -222,7 +222,9 @@ func (s *QuotaServiceServer) GetTicks(ctx context.Context, req *pb.GetTicksReque
 		offset = 0
 	}
 
-	ticks, err := getTickers(whereConditions, args, int(limit), int(offset), s.pool, ctx)
+	// 将 Interval 枚举转换为毫秒值
+	intervalMs := intervalToMilliseconds(req.Interval)
+	ticks, err := getTickers(whereConditions, args, int(limit), int(offset), intervalMs, s.pool, ctx)
 	if err != nil {
 		return &pb.GetTicksResponse{
 			Success: false,
@@ -263,10 +265,6 @@ func (s *QuotaServiceServer) GetLatestTick(ctx context.Context, req *pb.GetLates
 	}
 
 	t, receiveTime, bidsPx, bidsSz, asksPx, asksSz, err := getTick(whereConditions, s.pool, nil, args, nil)
-	if err != nil {
-		return nil, err
-	}
-
 	if err != nil {
 		return &pb.GetLatestTickResponse{
 			Success: false,

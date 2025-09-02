@@ -535,6 +535,13 @@ func makeGetTicksHandler(pool *CHPool) http.HandlerFunc {
 		symbol := r.URL.Query().Get("symbol")
 		exchange := r.URL.Query().Get("exchange")
 		marketType := r.URL.Query().Get("market_type")
+		intervalStr := r.URL.Query().Get("interval")
+		interval := int64(0) // 默认无间隔
+		if intervalStr != "" {
+			if i, err := strconv.ParseInt(intervalStr, 10, 64); err == nil {
+				interval = i
+			}
+		}
 
 		var startTime, endTime int64
 		if st := r.URL.Query().Get("start_time"); st != "" {
@@ -598,7 +605,7 @@ func makeGetTicksHandler(pool *CHPool) http.HandlerFunc {
 		}
 
 		// 构建查询SQL
-		ticks, err := getTickers(whereConditions, args, limit, offset, pool, r.Context())
+		ticks, err := getTickers(whereConditions, args, limit, offset, interval, pool, r.Context())
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(fmt.Sprintf(`{"error": "get tickers failed: %v"}`, err)))
@@ -620,8 +627,32 @@ func makeGetTicksHandler(pool *CHPool) http.HandlerFunc {
 	}
 }
 
-func getTickers(whereConditions []string, args []interface{}, limit int, offset int, pool *CHPool, ctx context.Context) ([]Tick, error) {
-	query := fmt.Sprintf(`
+func getTickers(whereConditions []string, args []interface{}, limit int, offset int, interval int64, pool *CHPool, ctx context.Context) ([]Tick, error) {
+	var query string
+
+	// 如果指定了时间间隔，使用采样查询
+	if interval > 0 {
+		// 将时间戳转换为秒级间隔进行采样
+		intervalSeconds := interval // 将毫秒转换为秒
+		query = fmt.Sprintf(`
+			SELECT 
+				toStartOfInterval(receive_time, INTERVAL %d millisecond) as receive_time,
+				symbol,
+				exchange,
+				market_type,
+				argMax(best_bid_px, receive_time) as best_bid_px,
+				argMax(best_bid_sz, receive_time) as best_bid_sz,
+				argMax(best_ask_px, receive_time) as best_ask_px,
+				argMax(best_ask_sz, receive_time) as best_ask_sz,
+				argMax(bids_px, receive_time) as bids_px,
+				argMax(bids_sz, receive_time) as bids_sz,
+				argMax(asks_px, receive_time) as asks_px,
+				argMax(asks_sz, receive_time) as asks_sz
+			FROM %s.%s
+		`, intervalSeconds, CONFIG.CHDatabase, CONFIG.CHTable)
+	} else {
+		// 原始查询，返回所有数据点
+		query = fmt.Sprintf(`
 			SELECT 
 				receive_time,
 				symbol,
@@ -637,14 +668,22 @@ func getTickers(whereConditions []string, args []interface{}, limit int, offset 
 				asks_sz
 			FROM %s.%s
 		`, CONFIG.CHDatabase, CONFIG.CHTable)
+	}
 
 	if len(whereConditions) > 0 {
 		query += " WHERE " + strings.Join(whereConditions, " AND ")
 	}
 
+	// 对于采样查询，需要按时间间隔分组
+	if interval > 0 {
+		query += " GROUP BY receive_time, symbol, exchange, market_type"
+	}
+
 	query += " ORDER BY receive_time DESC LIMIT ? OFFSET ?"
 	args = append(args, limit, offset)
 
+	log.Printf("query: %s", query)
+	log.Printf("args: %v", args)
 	// 执行查询
 	rows, err := pool.Query(ctx, query, args...)
 	if err != nil {
@@ -691,6 +730,46 @@ func getTickers(whereConditions []string, args []interface{}, limit int, offset 
 		return nil, fmt.Errorf("rows error: %v", err)
 	}
 	return ticks, nil
+}
+
+// intervalToMilliseconds 将 Interval 枚举转换为毫秒值
+func intervalToMilliseconds(interval pb.Interval) int64 {
+	switch interval {
+	case pb.Interval_INTERVAL_1MS:
+		return 1
+	case pb.Interval_INTERVAL_5MS:
+		return 5
+	case pb.Interval_INTERVAL_10MS:
+		return 10
+	case pb.Interval_INTERVAL_30MS:
+		return 30
+	case pb.Interval_INTERVAL_100MS:
+		return 100
+	case pb.Interval_INTERVAL_1S:
+		return 1000
+	case pb.Interval_INTERVAL_5S:
+		return 5000
+	case pb.Interval_INTERVAL_10S:
+		return 10000
+	case pb.Interval_INTERVAL_30S:
+		return 30000
+	case pb.Interval_INTERVAL_1M:
+		return 60000
+	case pb.Interval_INTERVAL_5M:
+		return 300000
+	case pb.Interval_INTERVAL_15M:
+		return 900000
+	case pb.Interval_INTERVAL_30M:
+		return 1800000
+	case pb.Interval_INTERVAL_1H:
+		return 3600000
+	case pb.Interval_INTERVAL_4H:
+		return 14400000
+	case pb.Interval_INTERVAL_1D:
+		return 86400000
+	default:
+		return 0 // 无间隔，返回原始数据
+	}
 }
 
 // makeGetLatestTickHandler 创建获取最新行情的 HTTP 处理器
