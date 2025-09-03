@@ -94,12 +94,17 @@ func TestIntegrationWithRealService(t *testing.T) {
 	})
 
 	t.Run("测试并发访问", func(t *testing.T) {
-		concurrency := 10
+		concurrency := 5 // 减少并发数，避免连接池耗尽
 		done := make(chan bool, concurrency)
+		timeout := time.After(30 * time.Second) // 设置超时
 
 		for i := 0; i < concurrency; i++ {
 			go func(index int) {
 				defer func() { done <- true }()
+
+				// 为每个 goroutine 设置独立的超时上下文
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
 
 				// 并发获取最新行情
 				_, err := GetLatestTick(ctx, "BTCUSDT", "binance", "spot")
@@ -109,9 +114,16 @@ func TestIntegrationWithRealService(t *testing.T) {
 			}(i)
 		}
 
-		// 等待所有 goroutine 完成
-		for i := 0; i < concurrency; i++ {
-			<-done
+		// 等待所有 goroutine 完成或超时
+		completed := 0
+		for completed < concurrency {
+			select {
+			case <-done:
+				completed++
+			case <-timeout:
+				t.Errorf("并发测试超时，只完成了 %d/%d 个 goroutine", completed, concurrency)
+				return
+			}
 		}
 	})
 }

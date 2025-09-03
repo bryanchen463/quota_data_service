@@ -5,7 +5,6 @@
 # 文档
 README*.md
 *.md
-docs/
 
 # 测试文件
 *_test.go

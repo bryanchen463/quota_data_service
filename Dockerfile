@@ -27,6 +27,9 @@ RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 # 复制源代码
 COPY . .
 
+# 复制docs目录
+COPY ./docs ./docs
+
 # 生成 protobuf 代码
 RUN protoc --go_out=. --go_opt=paths=source_relative \
     --go-grpc_out=. --go-grpc_opt=paths=source_relative \

@@ -44,6 +44,7 @@ package main
 import (
 	"bufio"
 	"context"
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -64,6 +65,9 @@ import (
 )
 
 var ErrNoData = errors.New("no data found for the specified symbol")
+
+//go:embed docs/openapi.yaml
+var openapiYAML []byte
 
 // Tick 与 ClickHouse 表字段一一对应
 // receive_time 使用秒（float64）传入，写入前转换为 time.Time（微秒精度）
@@ -481,6 +485,15 @@ func main() {
 	http.HandleFunc("/ticks", makeGetTicksHandler(writer.pool))
 	http.HandleFunc("/latest", makeGetLatestTickHandler(writer.pool))
 
+	// 提供 Swagger UI 静态页面与资源
+	fs := http.FileServer(http.Dir("docs/swagger"))
+	http.Handle("/swagger/", http.StripPrefix("/swagger/", fs))
+	// 提供 OpenAPI 文档（嵌入二进制）
+	http.HandleFunc("/swagger.yaml", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/yaml; charset=utf-8")
+		_, _ = w.Write(openapiYAML)
+	})
+
 	httpSrv := &http.Server{Addr: CONFIG.HTTPAddr, ReadTimeout: 5 * time.Second, WriteTimeout: 5 * time.Second}
 	go func() {
 		if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -605,7 +618,7 @@ func makeGetTicksHandler(pool *CHPool) http.HandlerFunc {
 		}
 
 		// 构建查询SQL
-		ticks, err := getTickers(whereConditions, args, limit, offset, interval, pool, r.Context())
+		ticks, err := getTickers(r.Context(), whereConditions, args, limit, offset, interval, pool)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(fmt.Sprintf(`{"error": "get tickers failed: %v"}`, err)))
@@ -627,7 +640,7 @@ func makeGetTicksHandler(pool *CHPool) http.HandlerFunc {
 	}
 }
 
-func getTickers(whereConditions []string, args []interface{}, limit int, offset int, interval int64, pool *CHPool, ctx context.Context) ([]Tick, error) {
+func getTickers(ctx context.Context, whereConditions []string, args []interface{}, limit int, offset int, interval int64, pool *CHPool) ([]Tick, error) {
 	var query string
 
 	// 如果指定了时间间隔，使用采样查询

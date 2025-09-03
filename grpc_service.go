@@ -224,7 +224,7 @@ func (s *QuotaServiceServer) GetTicks(ctx context.Context, req *pb.GetTicksReque
 
 	// 将 Interval 枚举转换为毫秒值
 	intervalMs := intervalToMilliseconds(req.Interval)
-	ticks, err := getTickers(whereConditions, args, int(limit), int(offset), intervalMs, s.pool, ctx)
+	ticks, err := getTickers(ctx, whereConditions, args, int(limit), int(offset), intervalMs, s.pool)
 	if err != nil {
 		return &pb.GetTicksResponse{
 			Success: false,
