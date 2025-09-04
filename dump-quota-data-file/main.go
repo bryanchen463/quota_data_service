@@ -114,6 +114,24 @@ var (
 	processedRowsMu sync.Mutex
 )
 
+// 检查文件是否还在被写入（通过检查文件大小变化）
+func isFileStillBeingWritten(filename string) bool {
+	stat1, err := os.Stat(filename)
+	if err != nil {
+		return true // 如果无法获取状态，假设还在写入
+	}
+
+	time.Sleep(100 * time.Millisecond)
+
+	stat2, err := os.Stat(filename)
+	if err != nil {
+		return true
+	}
+
+	// 如果文件大小或修改时间发生变化，说明还在写入
+	return stat1.Size() != stat2.Size() || stat1.ModTime() != stat2.ModTime()
+}
+
 func parseH5File(filename string) ([]QuoteData, error) {
 	exchange := path.Base(path.Dir(filename))
 	items := strings.Split(path.Base(filename), "_")
@@ -123,18 +141,43 @@ func parseH5File(filename string) ([]QuoteData, error) {
 
 	symbol = strings.TrimSuffix(symbol, ".h5")
 
-	// 打开 hdf5 文件 (只读)，重试机制处理写入中的文件
+	// 检查文件是否还在被写入
+	if isFileStillBeingWritten(filename) {
+		log.Printf("文件 %s 仍在写入中，跳过本次处理", filename)
+		return nil, nil
+	}
+
+	// 打开 hdf5 文件 (只读)，增强重试机制处理文件锁定
 	var file *hdf5.File
 	var err error
-	maxRetries := 5
+	maxRetries := 10
+	baseDelay := 200 * time.Millisecond
+
 	for i := 0; i < maxRetries; i++ {
 		file, err = hdf5.OpenFile(filename, hdf5.F_ACC_RDONLY)
 		if err == nil {
 			break
 		}
-		log.Printf("打开文件失败 (尝试 %d/%d): %v", i+1, maxRetries, err)
-		if i < maxRetries-1 {
-			time.Sleep(time.Duration(i+1) * 100 * time.Millisecond) // 递增延迟
+
+		// 检查是否是文件锁定错误
+		if strings.Contains(err.Error(), "Resource temporarily unavailable") ||
+			strings.Contains(err.Error(), "unable to lock file") {
+			// 文件被锁定，使用指数退避
+			delay := time.Duration(1<<uint(i)) * baseDelay
+			if delay > 5*time.Second {
+				delay = 5 * time.Second
+			}
+			log.Printf("文件被锁定，等待 %v 后重试 (尝试 %d/%d): %v", delay, i+1, maxRetries, err)
+			if i < maxRetries-1 {
+				time.Sleep(delay)
+			}
+		} else {
+			// 其他错误，使用线性延迟
+			delay := time.Duration(i+1) * baseDelay
+			log.Printf("打开文件失败 (尝试 %d/%d): %v", i+1, maxRetries, err)
+			if i < maxRetries-1 {
+				time.Sleep(delay)
+			}
 		}
 	}
 	if err != nil {
@@ -286,12 +329,12 @@ func watchFile(dir string) {
 					continue
 				}
 				name := event.Name
-				// 2秒去抖动窗口，确保文件写入完成
-				debounce(name, 2*time.Second, func() {
+				// 5秒去抖动窗口，确保文件写入和锁定释放完成
+				debounce(name, 5*time.Second, func() {
 					// 在新 goroutine 中处理，避免阻塞事件循环
 					go func() {
-						// 额外等待确保文件写入完成
-						time.Sleep(500 * time.Millisecond)
+						// 额外等待确保文件写入完成和锁定释放
+						time.Sleep(2 * time.Second)
 						parseH5File(name)
 					}()
 				})
