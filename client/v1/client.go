@@ -26,7 +26,7 @@ func GetLatestTick(ctx context.Context, symbol string, exchange string, marketTy
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
+	defer p.Put(conn)
 
 	client := pb.NewQuotaServiceClient(conn)
 
@@ -46,7 +46,7 @@ func GetTicksWithInterval(ctx context.Context, symbol string, exchange string, m
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
+	defer p.Put(conn)
 
 	client := pb.NewQuotaServiceClient(conn)
 	response, err := client.GetTicks(ctx, &pb.GetTicksRequest{
@@ -95,7 +95,7 @@ func InsertTick(ctx context.Context, tick *pb.Tick) error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer p.Put(conn)
 
 	client := pb.NewQuotaServiceClient(conn)
 	response, err := client.IngestTick(ctx, &pb.IngestTickRequest{Tick: tick})
@@ -113,7 +113,7 @@ func InsertTicks(ctx context.Context, ticks []*pb.Tick) error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer p.Put(conn)
 
 	client := pb.NewQuotaServiceClient(conn)
 	response, err := client.IngestTicks(ctx, &pb.IngestTicksRequest{Ticks: ticks})
