@@ -181,7 +181,7 @@ func (p *Pool) Close() {
 }
 
 func (p *Pool) newConn() (*grpc.ClientConn, error) {
-	return grpc.NewClient(p.target, p.opts...)
+	return grpc.Dial(p.target, p.opts...)
 }
 
 // isHealthy 检查连接是否健康

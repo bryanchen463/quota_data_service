@@ -15,6 +15,8 @@ import (
 	"github.com/bryanchen463/quota_data_service/proto"
 	"github.com/fsnotify/fsnotify"
 	"gonum.org/v1/hdf5"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type QuoteData struct {
@@ -241,17 +243,17 @@ func parseH5File(filename string) ([]QuoteData, error) {
 			BestAskSz:   quote.BestAskSize,
 		})
 		if len(ticks) >= 100 {
-			err = client.InsertTicks(context.Background(), ticks)
-			if err != nil {
-				log.Fatalf("插入失败: %v", err)
+			if err := insertTicksWithRetry(ticks, 3); err != nil {
+				log.Printf("批量插入失败，稍后重试: %v", err)
+				return nil, err
 			}
 			ticks = make([]*proto.Tick, 0)
 		}
 	}
 	if len(ticks) > 0 {
-		err = client.InsertTicks(context.Background(), ticks)
-		if err != nil {
-			log.Fatalf("插入失败: %v", err)
+		if err := insertTicksWithRetry(ticks, 3); err != nil {
+			log.Printf("批量插入失败，稍后重试: %v", err)
+			return nil, err
 		}
 	}
 
@@ -261,6 +263,50 @@ func parseH5File(filename string) ([]QuoteData, error) {
 	processedRowsMu.Unlock()
 
 	return appendData, nil
+}
+
+// 判断是否是可重试的 gRPC 瞬时错误
+func isTransientGRPCErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	st, ok := status.FromError(err)
+	if !ok {
+		return false
+	}
+	switch st.Code() {
+	case codes.Unavailable, codes.DeadlineExceeded, codes.ResourceExhausted:
+		return true
+	default:
+		return false
+	}
+}
+
+// 带重试的批量插入
+func insertTicksWithRetry(ticks []*proto.Tick, maxRetries int) error {
+	var lastErr error
+	backoff := 200 * time.Millisecond
+	for i := 0; i <= maxRetries; i++ {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		err := client.InsertTicks(ctx, ticks)
+		cancel()
+		if err == nil {
+			return nil
+		}
+		lastErr = err
+		if !isTransientGRPCErr(err) {
+			return err
+		}
+		if i < maxRetries {
+			time.Sleep(backoff)
+			// 指数退避，封顶 3s
+			backoff *= 2
+			if backoff > 3*time.Second {
+				backoff = 3 * time.Second
+			}
+		}
+	}
+	return lastErr
 }
 
 func watchFile(dir string) {
