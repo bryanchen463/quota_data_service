@@ -385,7 +385,7 @@ var exclude_dir = flag.String("exclude_dir", "", "exclude_dir")
 
 func main() {
 	flag.Parse()
-	err := client.InitPool(context.Background(), *target, 10, 10, 10*time.Second, 10*time.Second)
+	err := client.InitPool(context.Background(), *target, 10, 100, 10*time.Second, 10*time.Second)
 	if err != nil {
 		log.Fatalf("无法创建连接池: %v", err)
 	}
