@@ -123,10 +123,23 @@ func parseH5File(filename string) ([]QuoteData, error) {
 
 	symbol = strings.TrimSuffix(symbol, ".h5")
 
-	// 打开 hdf5 文件 (只读)
-	file, err := hdf5.OpenFile(filename, hdf5.F_ACC_RDONLY)
+	// 打开 hdf5 文件 (只读)，重试机制处理写入中的文件
+	var file *hdf5.File
+	var err error
+	maxRetries := 5
+	for i := 0; i < maxRetries; i++ {
+		file, err = hdf5.OpenFile(filename, hdf5.F_ACC_RDONLY)
+		if err == nil {
+			break
+		}
+		log.Printf("打开文件失败 (尝试 %d/%d): %v", i+1, maxRetries, err)
+		if i < maxRetries-1 {
+			time.Sleep(time.Duration(i+1) * 100 * time.Millisecond) // 递增延迟
+		}
+	}
 	if err != nil {
-		log.Fatalf("无法打开文件: %v", err)
+		log.Printf("无法打开文件 %s 超过最大重试次数: %v", filename, err)
+		return nil, err
 	}
 	defer file.Close()
 
@@ -273,10 +286,14 @@ func watchFile(dir string) {
 					continue
 				}
 				name := event.Name
-				// 300ms 去抖动窗口，可按需调整
-				debounce(name, 1*time.Second, func() {
+				// 2秒去抖动窗口，确保文件写入完成
+				debounce(name, 2*time.Second, func() {
 					// 在新 goroutine 中处理，避免阻塞事件循环
-					parseH5File(name)
+					go func() {
+						// 额外等待确保文件写入完成
+						time.Sleep(500 * time.Millisecond)
+						parseH5File(name)
+					}()
 				})
 			}
 		case err := <-watcher.Errors:
