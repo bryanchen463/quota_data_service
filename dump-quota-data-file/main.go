@@ -366,11 +366,9 @@ func watchFile(dir string) {
 				// 5秒去抖动窗口，确保文件写入和锁定释放完成
 				debounce(name, 5*time.Second, func() {
 					// 在新 goroutine 中处理，避免阻塞事件循环
-					go func() {
-						// 额外等待确保文件写入完成和锁定释放
-						time.Sleep(2 * time.Second)
-						parseH5File(name)
-					}()
+					// 额外等待确保文件写入完成和锁定释放
+					time.Sleep(2 * time.Second)
+					parseH5File(name)
 				})
 			}
 		case err := <-watcher.Errors:
