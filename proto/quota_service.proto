@@ -33,7 +33,7 @@ message Tick {
   // 交易所
   string exchange = 3;
   
-  // 市场类型：spot|futures
+  // 市场类型：SP|UM
   string market_type = 4;
   
   // 最佳买价
@@ -121,7 +121,7 @@ message GetTicksRequest {
   // 交易所（可选）nets
   string exchange = 2;
   
-  // 市场类型（可选）：spot|futures
+  // 市场类型（可选）：SP|UM
   string market_type = 3;
   
   // 开始时间（Unix时间戳，秒）
@@ -156,7 +156,7 @@ message GetLatestTickRequest {
   // 交易所（可选）
   string exchange = 2;
   
-  // 市场类型（可选）：spot|futures
+  // 市场类型（可选）：SP|UM
   string market_type = 3;
 }
 

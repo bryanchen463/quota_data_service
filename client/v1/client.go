@@ -107,3 +107,21 @@ func InsertTick(ctx context.Context, tick *pb.Tick) error {
 	}
 	return nil
 }
+
+func InsertTicks(ctx context.Context, ticks []*pb.Tick) error {
+	conn, err := p.Get(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := pb.NewQuotaServiceClient(conn)
+	response, err := client.IngestTicks(ctx, &pb.IngestTicksRequest{Ticks: ticks})
+	if err != nil {
+		return err
+	}
+	if !response.Success {
+		return errors.New(response.Message)
+	}
+	return nil
+}

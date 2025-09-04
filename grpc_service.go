@@ -147,7 +147,7 @@ func (s *QuotaServiceServer) validateTick(tick *Tick) error {
 	if tick.MarketType == "" {
 		return status.Error(codes.InvalidArgument, "market_type is required")
 	}
-	if tick.MarketType != "spot" && tick.MarketType != "futures" {
+	if tick.MarketType != "SP" && tick.MarketType != "UM" {
 		return status.Error(codes.InvalidArgument, "market_type must be 'spot' or 'futures'")
 	}
 	if tick.ReceiveTime <= 0 {

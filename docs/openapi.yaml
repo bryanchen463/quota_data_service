@@ -1,0 +1,175 @@
+openapi: 3.0.3
+info:
+  title: Quota Data Service HTTP API
+  version: 1.0.0
+  description: 行情数据服务的 HTTP 查询/写入接口说明
+servers:
+  - url: http://localhost:8080
+paths:
+  /healthz:
+    get:
+      summary: 健康检查
+      responses:
+        '200':
+          description: OK
+  /ingest:
+    post:
+      summary: 推送行情（单条或 NDJSON 批量）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Tick'
+          application/x-ndjson:
+            schema:
+              type: string
+      responses:
+        '202':
+          description: Accepted
+        '415':
+          description: Unsupported Media Type
+  /ticks:
+    get:
+      summary: 查询历史行情（可选时间间隔采样）
+      parameters:
+        - in: query
+          name: symbol
+          schema:
+            type: string
+          description: 交易对（支持 * 通配符）
+        - in: query
+          name: exchange
+          schema:
+            type: string
+        - in: query
+          name: market_type
+          schema:
+            type: string
+            enum: [spot, futures]
+        - in: query
+          name: start_time
+          schema:
+            type: integer
+            format: int64
+          description: 开始时间，Unix 秒
+        - in: query
+          name: end_time
+          schema:
+            type: integer
+            format: int64
+          description: 结束时间，Unix 秒
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 100
+            maximum: 1000
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+        - in: query
+          name: interval
+          schema:
+            oneOf:
+              - type: integer
+                description: 采样间隔（毫秒）。<1000 使用毫秒分桶，≥1000 按秒分桶
+              - type: string
+                description: 采样间隔（人类可读），如 1s、5s、1m、5m、1h、1d
+          description: 可选。指定采样间隔
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  total_count:
+                    type: integer
+                  ticks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Tick'
+        '400':
+          description: 参数错误
+  /latest:
+    get:
+      summary: 查询最新一条 Tick
+      parameters:
+        - in: query
+          name: symbol
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: exchange
+          schema:
+            type: string
+        - in: query
+          name: market_type
+          schema:
+            type: string
+            enum: [spot, futures]
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  tick:
+                    $ref: '#/components/schemas/Tick'
+        '400':
+          description: 参数错误
+components:
+  schemas:
+    Tick:
+      type: object
+      properties:
+        receive_time:
+          type: number
+          format: double
+          description: 秒，支持小数（微秒精度）
+        symbol:
+          type: string
+        exchange:
+          type: string
+        market_type:
+          type: string
+          enum: [spot, futures]
+        best_bid_px:
+          type: number
+        best_bid_sz:
+          type: number
+        best_ask_px:
+          type: number
+        best_ask_sz:
+          type: number
+        bids_px:
+          type: array
+          items:
+            type: number
+        bids_sz:
+          type: array
+          items:
+            type: number
+        asks_px:
+          type: array
+          items:
+            type: number
+        asks_sz:
+          type: array
+          items:
+            type: number

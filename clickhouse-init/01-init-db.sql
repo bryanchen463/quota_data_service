@@ -8,6 +8,7 @@ USE crypto_market;
 
 -- 创建行情数据表（如果不存在）
 CREATE TABLE IF NOT EXISTS raw_ticks (
+    id             UInt64 CODEC(DoubleDelta, ZSTD(3)) DEFAULT 0,
     receive_time   DateTime64(6) CODEC(DoubleDelta, ZSTD(3)),
     symbol         LowCardinality(String),
     exchange       LowCardinality(String),
@@ -23,6 +24,8 @@ CREATE TABLE IF NOT EXISTS raw_ticks (
 ) ENGINE = MergeTree
 PARTITION BY toDate(receive_time)
 ORDER BY (symbol, receive_time)
+PRIMARY KEY (id)
+UNIQUE KEY (symbol, receive_time, exchange, market_type)
 SETTINGS index_granularity = 8192;
 
 -- 创建默认用户权限

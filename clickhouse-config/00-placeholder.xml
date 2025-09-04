@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<clickhouse>
+  <!-- placeholder to ensure /etc/clickhouse-server/config.d/*.xml is not empty -->
+</clickhouse>
