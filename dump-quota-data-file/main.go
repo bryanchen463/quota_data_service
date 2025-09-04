@@ -296,6 +296,40 @@ func watchFile(dir string) {
 		log.Fatalf("初始化递归监听失败: %v", err)
 	}
 
+	// 启动时递归扫描并解析现有 .h5 文件（遵从排除目录）
+	scanAndParseExisting := func(root string) {
+		parsed := 0
+		walkErr := filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
+			if err != nil {
+				log.Printf("遍历出错 %s: %v", p, err)
+				return nil
+			}
+			if d.IsDir() {
+				if strings.Contains(*exclude_dir, p) {
+					log.Printf("启动扫描排除目录: %s", p)
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if strings.ToLower(filepath.Ext(p)) != ".h5" {
+				return nil
+			}
+			if isFileStillBeingWritten(p) {
+				log.Printf("启动扫描发现文件仍在写入，跳过: %s", p)
+				return nil
+			}
+			go parseH5File(p)
+			parsed++
+			return nil
+		})
+		if walkErr != nil {
+			log.Printf("启动扫描发生错误: %v", walkErr)
+		}
+		log.Printf("启动扫描完成，提交 %d 个 h5 文件解析", parsed)
+	}
+
+	scanAndParseExisting(dir)
+
 	// 去抖动：同一文件在短时间内多次写入只触发一次处理
 	debouncers := make(map[string]*time.Timer)
 	var mu sync.Mutex
