@@ -71,7 +71,7 @@ func TestIntegrationWithRealService(t *testing.T) {
 		startTime := time.Now().Add(-1 * time.Minute).Unix()
 		endTime := time.Now().Unix()
 
-		ticks, err := GetTicks(ctx, "TESTUSDT", "test", "spot", startTime, endTime)
+		ticks, err := GetTicks(ctx, "TESTUSDT", "test", "spot", startTime, endTime, pb.Interval_INTERVAL_1MS, 100, 0)
 		if err != nil {
 			t.Logf("获取历史行情失败（可能是服务未运行）: %v", err)
 			return
@@ -89,7 +89,7 @@ func TestIntegrationWithRealService(t *testing.T) {
 
 		// 测试无效的时间范围
 		_, err = GetTicks(ctx, "TESTUSDT", "test", "spot",
-			time.Now().Unix(), time.Now().Add(-1*time.Hour).Unix())
+			time.Now().Unix(), time.Now().Add(-1*time.Hour).Unix(), pb.Interval_INTERVAL_1MS, 100, 0)
 		assert.Error(t, err, "无效时间范围应该返回错误")
 	})
 

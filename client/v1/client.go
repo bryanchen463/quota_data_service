@@ -37,8 +37,8 @@ func GetLatestTick(ctx context.Context, symbol string, exchange string, marketTy
 	return response.Tick, nil
 }
 
-func GetTicks(ctx context.Context, symbol string, exchange string, marketType string, startTimestamp int64, endTimestamp int64) ([]*pb.Tick, error) {
-	return GetTicksWithInterval(ctx, symbol, exchange, marketType, startTimestamp, endTimestamp, pb.Interval_INTERVAL_1MS, 100, 0)
+func GetTicks(ctx context.Context, symbol string, exchange string, marketType string, startTimestamp int64, endTimestamp int64, interval pb.Interval, limit int32, offset int32) ([]*pb.Tick, error) {
+	return GetTicksWithInterval(ctx, symbol, exchange, marketType, startTimestamp, endTimestamp, interval, limit, offset)
 }
 
 func GetTicksWithInterval(ctx context.Context, symbol string, exchange string, marketType string, startTimestamp int64, endTimestamp int64, interval pb.Interval, limit int32, offset int32) ([]*pb.Tick, error) {

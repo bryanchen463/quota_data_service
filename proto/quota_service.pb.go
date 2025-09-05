@@ -118,7 +118,7 @@ type Tick struct {
 	Symbol string `protobuf:"bytes,2,opt,name=symbol,proto3" json:"symbol,omitempty"`
 	// 交易所
 	Exchange string `protobuf:"bytes,3,opt,name=exchange,proto3" json:"exchange,omitempty"`
-	// 市场类型：spot|futures
+	// 市场类型：SP|UM
 	MarketType string `protobuf:"bytes,4,opt,name=market_type,json=marketType,proto3" json:"market_type,omitempty"`
 	// 最佳买价
 	BestBidPx float64 `protobuf:"fixed64,5,opt,name=best_bid_px,json=bestBidPx,proto3" json:"best_bid_px,omitempty"`
@@ -563,7 +563,7 @@ type GetTicksRequest struct {
 	Symbol string `protobuf:"bytes,1,opt,name=symbol,proto3" json:"symbol,omitempty"`
 	// 交易所（可选）nets
 	Exchange string `protobuf:"bytes,2,opt,name=exchange,proto3" json:"exchange,omitempty"`
-	// 市场类型（可选）：spot|futures
+	// 市场类型（可选）：SP|UM
 	MarketType string `protobuf:"bytes,3,opt,name=market_type,json=marketType,proto3" json:"market_type,omitempty"`
 	// 开始时间（Unix时间戳，秒）
 	StartTime int64 `protobuf:"varint,4,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
@@ -741,7 +741,7 @@ type GetLatestTickRequest struct {
 	Symbol string `protobuf:"bytes,1,opt,name=symbol,proto3" json:"symbol,omitempty"`
 	// 交易所（可选）
 	Exchange string `protobuf:"bytes,2,opt,name=exchange,proto3" json:"exchange,omitempty"`
-	// 市场类型（可选）：spot|futures
+	// 市场类型（可选）：SP|UM
 	MarketType    string `protobuf:"bytes,3,opt,name=market_type,json=marketType,proto3" json:"market_type,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

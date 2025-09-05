@@ -244,7 +244,7 @@ func TestGetTicks(t *testing.T) {
 				return
 			}
 
-			ticks, err := GetTicks(ctx, tt.symbol, tt.exchange, tt.marketType, tt.startTimestamp, tt.endTimestamp)
+			ticks, err := GetTicks(ctx, tt.symbol, tt.exchange, tt.marketType, tt.startTimestamp, tt.endTimestamp, pb.Interval_INTERVAL_1MS, 100, 0)
 
 			if tt.expectError {
 				assert.Error(t, err)
@@ -475,7 +475,7 @@ func TestClientErrorHandling(t *testing.T) {
 		// 测试 GetTicks - 会 panic，这是预期的行为
 		assert.Panics(t, func() {
 			GetTicks(ctx, "BTCUSDT", "binance", "spot",
-				time.Now().Add(-1*time.Hour).Unix(), time.Now().Unix())
+				time.Now().Add(-1*time.Hour).Unix(), time.Now().Unix(), pb.Interval_INTERVAL_1MS, 100, 0)
 		}, "连接池为 nil 时应该 panic")
 
 		// 测试 InsertTick - 会 panic，这是预期的行为
@@ -509,7 +509,7 @@ func TestConcurrentAccess(t *testing.T) {
 
 			// 并发获取历史行情
 			_, err = GetTicks(ctx, "BTCUSDT", "binance", "spot",
-				time.Now().Add(-1*time.Hour).Unix(), time.Now().Unix())
+				time.Now().Add(-1*time.Hour).Unix(), time.Now().Unix(), pb.Interval_INTERVAL_1MS, 100, 0)
 			if err != nil {
 				t.Errorf("并发获取历史行情失败: %v", err)
 			}
@@ -554,7 +554,7 @@ func BenchmarkGetTicks(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := GetTicks(ctx, "BTCUSDT", "binance", "spot", startTime, endTime)
+		_, err := GetTicks(ctx, "BTCUSDT", "binance", "spot", startTime, endTime, pb.Interval_INTERVAL_1MS, 100, 0)
 		if err != nil {
 			b.Logf("性能测试中获取历史行情失败: %v", err)
 			break
