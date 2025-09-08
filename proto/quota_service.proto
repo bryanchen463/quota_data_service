@@ -20,6 +20,9 @@ service QuotaService {
   
   // 健康检查
   rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+
+  // 获取活跃交易对
+  rpc GetActiveSymbols(GetActiveSymbolsRequest) returns (GetActiveSymbolsResponse);
 }
 
 // 单个行情数据
@@ -166,3 +169,17 @@ message GetLatestTickResponse {
   string message = 2;
   Tick tick = 3;
 } 
+
+message GetActiveSymbolsRequest {
+  // 交易所（可选）
+  string exchange = 1;
+
+  // 市场类型（可选）：SP|UM
+  string market_type = 2;
+}
+
+message GetActiveSymbolsResponse {
+  bool success = 1;
+  string message = 2;
+  repeated string symbols = 3;
+}

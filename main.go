@@ -906,3 +906,43 @@ func getTick(whereConditions []string, pool *CHPool, r *http.Request, args []int
 	}
 	return tick, receiveTime, bidsPx, bidsSz, asksPx, asksSz, nil
 }
+
+func getActiveSymbols(ctx context.Context, whereConditions []string, pool *CHPool, args []interface{}) ([]string, error) {
+	var query string
+
+	if len(whereConditions) > 0 {
+		query = fmt.Sprintf(`
+			SELECT DISTINCT symbol
+			FROM %s.%s
+			WHERE %s
+			ORDER BY symbol
+		`, CONFIG.CHDatabase, CONFIG.CHTable, strings.Join(whereConditions, " AND "))
+	} else {
+		query = fmt.Sprintf(`
+			SELECT DISTINCT symbol
+			FROM %s.%s
+			ORDER BY symbol
+		`, CONFIG.CHDatabase, CONFIG.CHTable)
+	}
+
+	rows, err := pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %v", err)
+	}
+	defer rows.Close()
+
+	symbols := make([]string, 0)
+	for rows.Next() {
+		var symbol string
+		err := rows.Scan(&symbol)
+		if err != nil {
+			return nil, fmt.Errorf("scan failed: %v", err)
+		}
+		symbols = append(symbols, symbol)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %v", err)
+	}
+	return symbols, nil
+}

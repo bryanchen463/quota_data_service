@@ -303,3 +303,30 @@ func convertTick(tick *Tick, receiveTime float64) *pb.Tick {
 		ReceiveTime: receiveTime,
 	}
 }
+
+func (s *QuotaServiceServer) GetActiveSymbols(ctx context.Context, req *pb.GetActiveSymbolsRequest) (*pb.GetActiveSymbolsResponse, error) {
+	whereConditions := []string{}
+	args := []interface{}{}
+
+	if req.Exchange != "" {
+		whereConditions = append(whereConditions, "exchange = ?")
+		args = append(args, req.Exchange)
+	}
+
+	if req.MarketType != "" {
+		whereConditions = append(whereConditions, "market_type = ?")
+		args = append(args, req.MarketType)
+	}
+	symbols, err := getActiveSymbols(ctx, whereConditions, s.pool, args)
+	if err != nil {
+		return &pb.GetActiveSymbolsResponse{
+			Success: false,
+			Message: fmt.Sprintf("get active symbols failed: %v", err),
+		}, err
+	}
+	return &pb.GetActiveSymbolsResponse{
+		Success: true,
+		Message: "active symbols retrieved successfully",
+		Symbols: symbols,
+	}, nil
+}
