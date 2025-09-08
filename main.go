@@ -907,20 +907,22 @@ func getTick(whereConditions []string, pool *CHPool, r *http.Request, args []int
 	return tick, receiveTime, bidsPx, bidsSz, asksPx, asksSz, nil
 }
 
-func getActiveSymbols(ctx context.Context, whereConditions []string, pool *CHPool, args []interface{}) ([]string, error) {
+func getActiveSymbols(ctx context.Context, whereConditions []string, pool *CHPool, args []interface{}) ([]*pb.ActiveSymbol, error) {
 	var query string
 
 	if len(whereConditions) > 0 {
 		query = fmt.Sprintf(`
-			SELECT DISTINCT symbol
+			SELECT symbol, exchange, market_type
 			FROM %s.%s
 			WHERE %s
+			GROUP BY symbol, exchange, market_type
 			ORDER BY symbol
 		`, CONFIG.CHDatabase, CONFIG.CHTable, strings.Join(whereConditions, " AND "))
 	} else {
 		query = fmt.Sprintf(`
-			SELECT DISTINCT symbol
+			SELECT symbol, exchange, market_type
 			FROM %s.%s
+			GROUP BY symbol, exchange, market_type
 			ORDER BY symbol
 		`, CONFIG.CHDatabase, CONFIG.CHTable)
 	}
@@ -931,18 +933,24 @@ func getActiveSymbols(ctx context.Context, whereConditions []string, pool *CHPoo
 	}
 	defer rows.Close()
 
-	symbols := make([]string, 0)
+	pbSymbols := make([]*pb.ActiveSymbol, 0)
 	for rows.Next() {
 		var symbol string
-		err := rows.Scan(&symbol)
+		var exchange string
+		var marketType string
+		err := rows.Scan(&symbol, &exchange, &marketType)
 		if err != nil {
 			return nil, fmt.Errorf("scan failed: %v", err)
 		}
-		symbols = append(symbols, symbol)
+		pbSymbols = append(pbSymbols, &pb.ActiveSymbol{
+			Symbol:     symbol,
+			Exchange:   exchange,
+			MarketType: marketType,
+		})
 	}
 
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("rows error: %v", err)
 	}
-	return symbols, nil
+	return pbSymbols, nil
 }

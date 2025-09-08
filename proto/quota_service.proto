@@ -178,8 +178,14 @@ message GetActiveSymbolsRequest {
   string market_type = 2;
 }
 
+message ActiveSymbol {
+  string symbol = 1;
+  string exchange = 2;
+  string market_type = 3;
+}
+
 message GetActiveSymbolsResponse {
   bool success = 1;
   string message = 2;
-  repeated string symbols = 3;
+  repeated ActiveSymbol symbols = 3;
 }
