@@ -518,6 +518,30 @@ func main() {
 		}
 	}()
 
+	// 启动定时清理任务：删除 3 天前的数据
+	go func() {
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		ctx := context.Background()
+		cleanup := func() {
+			// 使用 ClickHouse 的 TTL 语法已在表上可选设置；这里提供显式清理作为补充
+			threshold := time.Now().Add(-72 * time.Hour) // 3 天前
+			q := fmt.Sprintf("ALTER TABLE %s.%s DELETE WHERE receive_time < ?", CONFIG.CHDatabase, CONFIG.CHTable)
+			ctxTimeout, cancel := context.WithTimeout(ctx, 2*time.Minute)
+			defer cancel()
+			if err := writer.pool.Exec(ctxTimeout, q, threshold); err != nil {
+				log.Printf("定时清理失败: %v", err)
+			} else {
+				log.Printf("定时清理成功: 已请求删除 receive_time < %s", threshold.Format(time.RFC3339))
+			}
+		}
+		// 启动时先清理一次
+		cleanup()
+		for range ticker.C {
+			cleanup()
+		}
+	}()
+
 	<-ctx.Done()
 	log.Printf("shutting down servers...")
 
@@ -695,8 +719,6 @@ func getTickers(ctx context.Context, whereConditions []string, args []interface{
 	query += " ORDER BY receive_time DESC LIMIT ? OFFSET ?"
 	args = append(args, limit, offset)
 
-	log.Printf("query: %s", query)
-	log.Printf("args: %v", args)
 	// 执行查询
 	rows, err := pool.Query(ctx, query, args...)
 	if err != nil {
