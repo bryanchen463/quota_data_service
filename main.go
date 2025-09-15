@@ -525,7 +525,7 @@ func main() {
 		ctx := context.Background()
 		cleanup := func() {
 			// 使用 ClickHouse 的 TTL 语法已在表上可选设置；这里提供显式清理作为补充
-			threshold := time.Now().Add(-72 * time.Hour) // 3 天前
+			threshold := time.Now().Add(-24 * time.Hour) // 3 天前
 			q := fmt.Sprintf("ALTER TABLE %s.%s DELETE WHERE receive_time < ?", CONFIG.CHDatabase, CONFIG.CHTable)
 			ctxTimeout, cancel := context.WithTimeout(ctx, 2*time.Minute)
 			defer cancel()
